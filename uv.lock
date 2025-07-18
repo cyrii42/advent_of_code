@@ -16,7 +16,6 @@ name = "advent-of-code"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "about-time" },
     { name = "alive-progress" },
     { name = "bs4" },
     { name = "loguru" },
@@ -31,7 +30,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "about-time", specifier = ">=4.2.1" },
     { name = "alive-progress", specifier = ">=3.2.0" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "loguru", specifier = ">=0.7.3" },
