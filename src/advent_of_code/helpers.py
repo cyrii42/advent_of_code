@@ -1,0 +1,36 @@
+from rich import print
+
+from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR
+from advent_of_code.logging_config import setup_logging
+
+setup_logging()
+
+def validate_year_and_day(year: int, day: int) -> None:
+    if year < 2015 or year > LATEST_AOC_YEAR:
+        raise ValueError(f"Invalid year: {year} (must be between 2015 and {LATEST_AOC_YEAR})")
+    if day < 1 or day > 31: 
+        raise ValueError(f"Invalid day: {day} (must be between 1 and 26)")
+    return None
+
+def make_solution_dirs():
+    for x in range(2015, LATEST_AOC_YEAR+1):
+        new_dir = SOLUTIONS_DIR / f"{x}"
+        if not new_dir.exists():
+            new_dir.mkdir()
+
+def rename_2022_files():
+    ''' Renames files from "2022_dayX.py" to "dayX.py" '''
+    DIR = SOLUTIONS_DIR / '2022'
+    for file in DIR.iterdir():
+        print(file)
+        current_stem = file.stem
+        new_stem = current_stem[5:]
+        new_path = file.with_stem(new_stem)
+        file.rename(new_path)
+
+
+
+
+    
+    
+
