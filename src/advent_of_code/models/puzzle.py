@@ -301,6 +301,7 @@ class Puzzle:
         
         answer_obj.submit()
         self.answers.append(answer_obj)
+        self.refresh_data_from_server()
         return answer_obj
 
     @classmethod
@@ -315,14 +316,23 @@ class Puzzle:
                 raise PuzzleNotFound(f"No puzzle found in database for {year} DAY {day:02f}")
             return cls(**row._asdict())
 
-    @classmethod
-    def from_server(cls, year: int, day: int) -> Self:
-        validate_year_and_day(year, day)
+    def refresh_data_from_server(self):
+        raw_html = get_raw_html_from_server(self.year, self.day)
         
-        url = f"https://adventofcode.com/{year}/day/{day}"
-        resp = requests.get(url, headers={"Cookie": f"session={AOC_SESSION}"})
-        resp.raise_for_status()
-        raw_html = resp.text
+        soup = BeautifulSoup(raw_html, 'html.parser')
+
+        self.part_1_solved, self.part_2_solved = get_solved_statuses_from_soup(soup)
+        part_1_description, part_2_description = get_puzzle_description_from_soup(soup)
+
+        self.title = get_puzzle_title_from_soup(soup)
+        self.part_1_description = part_1_description.replace(self.title, '')
+        self.part_2_description = part_2_description.replace('--- Part Two ---', '')
+
+        self.part_1_answer, self.part_2_answer = get_answers_from_soup(soup)
+
+    @classmethod
+    def from_server(cls, year: int, day: int, get_input: bool = True) -> Self:
+        raw_html = get_raw_html_from_server(year, day)
         
         soup = BeautifulSoup(raw_html, 'html.parser')
 
@@ -358,8 +368,15 @@ class Puzzle:
                    part_2_answer=part_2_answer,
                    example_text=example_text,
                    input_text=input_text,
-                   raw_html=raw_html,
-                   url=url)
+                   raw_html=raw_html)
+
+def get_raw_html_from_server(year: int, day: int) -> str:
+    validate_year_and_day(year, day)
+        
+    url = f"https://adventofcode.com/{year}/day/{day}"
+    resp = requests.get(url, headers={"Cookie": f"session={AOC_SESSION}"})
+    resp.raise_for_status()
+    return resp.text
 
 def get_input_from_server(year: int, day: int) -> str:
     url = f"https://adventofcode.com/{year}/day/{day}/input"

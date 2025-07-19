@@ -23,35 +23,44 @@ CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day'))
 
-# EXAMPLE_FILE = aoc.DATA_DIR / str(YEAR) / str(DAY) / 'example.txt'
-# INPUT_FILE = aoc.DATA_DIR / str(YEAR) / str(DAY) / 'input.txt' 
-
-EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
 
-def parse_data(data: str):
-    line_list = [line for line in data.split('\n') if line]
     
-def part_one(data: str):
-    __ = parse_data(data)
+def part_one(data: str) -> int:
+    location = 0
+    for char in data:
+        if char == '(':
+            location += 1
+        if char == ')':
+            location -= 1
+    return location
 
-def part_two(data: str):
-    __ = parse_data(data)
+
+def part_two(data: str) -> int:
+    location = 0
+    for i, char in enumerate(data, start=1):
+        if char == '(':
+            location += 1
+        if char == ')':
+            location -= 1
+
+        if location == -1:
+            return i
+    return -1
 
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
     print()
-    print(f"Part Two (example):  {part_two(EXAMPLE)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
 def random_tests():
-    ...
+    print(part_two(')'))
+    print(part_two('()())'))
 
        
 if __name__ == '__main__':
