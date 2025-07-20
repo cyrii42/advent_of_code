@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
 
+import advent_of_code as aoc
+
 CARD_LIST = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
 
 class HandType(IntEnum):
@@ -73,8 +75,9 @@ def main():
 
 
 def create_hand_list() -> list[Hand]:
-    with open('./inputs/day7.txt') as file:
-        line_list = file.read().split(sep='\n')
+    input = aoc.get_input(2023, 7)
+    line_list = input.split(sep='\n')
+
 
     line_list_split = [x.split(sep=' ') for x in line_list]
     return [Hand(line[0], int(line[1])) for line in line_list_split]

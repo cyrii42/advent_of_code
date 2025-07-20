@@ -29,6 +29,7 @@ DESCRIPTION = aoc.get_description(YEAR, DAY)
 
 def parse_data(data: str):
     line_list = [line for line in data.split('\n') if line]
+    print(line_list)
     
 def part_one(data: str):
     __ = parse_data(data)
@@ -36,14 +37,14 @@ def part_one(data: str):
 def part_two(data: str):
     __ = parse_data(data)
 
-
+# https://wiki.python.org/moin/BitwiseOperators
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
-    print()
-    print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
+    # print()
+    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 

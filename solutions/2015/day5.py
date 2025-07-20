@@ -51,17 +51,37 @@ def determine_niceness_part_1(string: str) -> bool:
     return find_repeated_letters(string)
 
 def apply_part_2_rule_1(string: str) -> bool:
-    ''' Determines whether the input string contains a pair 
-    of any two letters that appears at least twice in the 
-    string without overlapping, like xyxy (xy) or 
-    aabcdefgaa (aa), but not like aaa (aa, but it overlaps). '''
+    ''' Determines whether the input string contains a pair of any two 
+    letters that appears at least twice in the string without overlapping, 
+    like xyxy (xy) or aabcdefgaa (aa), but not like aaa (aa, but it overlaps). '''
     ...
+    pair_list = []
+    for i, char in enumerate(string):
+        if i+1 == len(string):
+            return False
+        if f"{char}{string[i+1]}" in pair_list:
+            if char != string[i+1]: # if the pair isn't the same letter twice, we're good
+                return True
+            if i+2 == len(string): # if we're at the end of the string, we're good 
+                return True
+            if string[i+2] != char and string[i-1] != char:
+                return True
+        pair_list.append(f"{char}{string[i+1]}")
+    return False
+    
 
 def apply_part_2_rule_2(string: str) -> bool:
-    ''' Determine whether the input string contains at least 
-    one letter that repeats with exactly one letter between 
-    them, like xyx, abcdefeghi (efe), or even aaa. '''
+    ''' Determine whether the input string contains at least one letter that 
+    repeats with exactly one letter between them, like xyx, abcdefeghi (efe), 
+    or even aaa. '''
     ...
+    for i, char in enumerate(string):
+        if i+2 == len(string):
+            return False
+        if char == string[i+2]:
+            return True
+        
+    return False
 
 def determine_niceness_part_2(string: str) -> bool:
     if not apply_part_2_rule_1(string):
@@ -77,7 +97,8 @@ def part_one(data: str):
     return len([x for x in string_list if determine_niceness_part_1(x)])
 
 def part_two(data: str):
-    __ = parse_data(data)
+    string_list = parse_data(data)
+    return len([x for x in string_list if determine_niceness_part_2(x)])
 
 
 
@@ -86,12 +107,21 @@ def main():
     print(f"Part One (input):  {part_one(INPUT)}")
     print()
     print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
+    # random_tests()
 
 def random_tests():
-    ...
+    for x in EXAMPLE_PART_TWO.split('\n'):
+        print(f"{x}: {apply_part_2_rule_1(x)}")
+    for x in EXAMPLE_PART_TWO.split('\n'):
+        print(f"{x}: {apply_part_2_rule_2(x)}")
+
+    strings_to_test = ['zurkakkkpchzxjhq', 'enamqzfzjunnnkpe']
+    for string in strings_to_test:
+        print(apply_part_2_rule_1(string))
+
+
 
        
 if __name__ == '__main__':

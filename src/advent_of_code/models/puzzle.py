@@ -142,7 +142,8 @@ class Puzzle:
             if not result:
                 return list()
             else:
-                return [PuzzleAnswer(**row._asdict()) for row in result]
+                return sorted([PuzzleAnswer(**row._asdict()) for row in result],
+                              key=lambda a: a.timestamp_dt)
 
     def check_answers_in_list(self) -> None:
         if not self.answers:

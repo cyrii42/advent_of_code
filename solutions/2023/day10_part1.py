@@ -41,23 +41,23 @@ class MapChar():
 
     def find_connections(self) -> None:
         if self.char == Pipe.VERTICAL:
-            self.connection_1 = Direction('N') if self.north is not None else None
-            self.connection_2 = Direction('S') if self.south is not None else None
+            self.connection_1 = Direction('N') if self.north else None
+            self.connection_2 = Direction('S') if self.south else None
         elif self.char == Pipe.HORIZONTAL:
-            self.connection_1 = Direction('E') if self.east is not None else None
-            self.connection_2 = Direction('W') if self.west is not None else None
+            self.connection_1 = Direction('E') if self.east else None
+            self.connection_2 = Direction('W') if self.west else None
         elif self.char == Pipe.NORTH_TO_EAST:
-            self.connection_1 = Direction('N') if self.north is not None else None
-            self.connection_2 = Direction('E') if self.east is not None else None
+            self.connection_1 = Direction('N') if self.north else None
+            self.connection_2 = Direction('E') if self.east else None
         elif self.char == Pipe.NORTH_TO_WEST:
-            self.connection_1 = Direction('N') if self.north is not None else None
-            self.connection_2 = Direction('W') if self.west is not None else None
+            self.connection_1 = Direction('N') if self.north else None
+            self.connection_2 = Direction('W') if self.west else None
         elif self.char == Pipe.SOUTH_TO_EAST:
-            self.connection_1 = Direction('S') if self.south is not None else None
-            self.connection_2 = Direction('E') if self.east is not None else None
+            self.connection_1 = Direction('S') if self.south else None
+            self.connection_2 = Direction('E') if self.east else None
         elif self.char == Pipe.SOUTH_TO_WEST:
-            self.connection_1 = Direction('S') if self.south is not None else None
-            self.connection_2 = Direction('W') if self.west is not None else None
+            self.connection_1 = Direction('S') if self.south else None
+            self.connection_2 = Direction('W') if self.west else None
         else:
             self.connection_1 = None
             self.connection_2 = None
@@ -65,13 +65,13 @@ class MapChar():
     def find_connections_from_start(self) -> None:
         conn_list = []
         if self.north == Pipe.VERTICAL or self.north == Pipe.SOUTH_TO_EAST or self.north == Pipe.SOUTH_TO_WEST:
-            conn_list.append(Direction('N')) if self.north is not None else conn_list.append(None)
+            conn_list.append(Direction('N')) if self.north else conn_list.append(None)
         if self.east == Pipe.HORIZONTAL or self.east == Pipe.NORTH_TO_WEST or self.east == Pipe.SOUTH_TO_WEST:
-            conn_list.append(Direction('E')) if self.east is not None else conn_list.append(None)
+            conn_list.append(Direction('E')) if self.east else conn_list.append(None)
         if self.south == Pipe.VERTICAL or self.south == Pipe.NORTH_TO_EAST or self.south == Pipe.NORTH_TO_WEST:
-            conn_list.append(Direction('S')) if self.south is not None else conn_list.append(None)
+            conn_list.append(Direction('S')) if self.south else conn_list.append(None)
         if self.west == Pipe.HORIZONTAL or self.west == Pipe.NORTH_TO_EAST or self.west == Pipe.SOUTH_TO_EAST:
-            conn_list.append(Direction('W')) if self.west is not None else conn_list.append(None)
+            conn_list.append(Direction('W')) if self.west else conn_list.append(None)
         if len(conn_list) != 2:
             raise ConnectionNumError(f"Starting MapChar must have exactly 2 connections; this one has {len(conn_list)}")
         else:

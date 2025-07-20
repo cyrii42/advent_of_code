@@ -73,7 +73,7 @@ def answers(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
         table.add_row(answer.timestamp_dt.strftime('%b %-d %-I:%M %p'),
                       str(answer.level),
                       answer.answer,
-                      answer.raw_response)
+                      str(answer.raw_response))
         if i < len(puzzle.answers):
             table.add_row()
     print(table)
@@ -97,15 +97,13 @@ def info(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
     table.add_row('Day', str(puzzle.day))
     table.add_row('Title', str(puzzle.title))
     table.add_row()
-    table.add_row('Part 1 Description', str(puzzle.part_1_description))
-    table.add_row('Part 1 Solved?', str(puzzle.part_1_solved))
+    table.add_row('Part One', str(puzzle.part_1_description))
     if puzzle.part_1_solved:
-        table.add_row('Part 1 Answer?', str(puzzle.part_1_answer))
+        table.add_row('Answer', str(puzzle.part_1_answer))
         table.add_row()
-        table.add_row('Part 2 Description', str(puzzle.part_2_description))
-        table.add_row('Part 2 Solved?', str(puzzle.part_2_solved))
+        table.add_row('Part Two', str(puzzle.part_2_description))
         if puzzle.part_2_solved:
-            table.add_row('Part 2 Answer?', str(puzzle.part_2_answer))
+            table.add_row('Answer', str(puzzle.part_2_answer))
 
     print(table)
 

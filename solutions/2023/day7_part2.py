@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
 
+import advent_of_code as aoc
+
 CARD_LIST = ['J', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A']
 
 class HandType(IntEnum):
@@ -52,7 +54,7 @@ class Hand():
             return HandType.HIGH_CARD
 
     def determine_hand_type_with_jokers(self) -> HandType:
-        most_prevelant_non_joker_card = None if self.jokers_in_hand == 5 else self.cards_sorted_by_prevalence_minus_jokers[0]
+        most_prevelant_non_joker_card = '' if self.jokers_in_hand == 5 else self.cards_sorted_by_prevalence_minus_jokers[0]
         if self.jokers_in_hand >= 4:
             return HandType.FIVE_OF_A_KIND
         elif self.jokers_in_hand == 3:
@@ -79,6 +81,8 @@ class Hand():
                     return HandType.THREE_OF_A_KIND
             else:
                 return HandType.ONE_PAIR
+        else:
+            return HandType.HIGH_CARD
             
         
 @dataclass
@@ -104,8 +108,8 @@ def main():
 
 
 def create_hand_group() -> HandGroup:
-    with open('./inputs/day7.txt') as file:
-        line_list = file.read().split(sep='\n')
+    input = aoc.get_input(2023, 7)
+    line_list = input.split(sep='\n')
 
     line_list_split = [x.split(sep=' ') for x in line_list]
     return HandGroup([Hand(line[0], int(line[1])) for line in line_list_split])
