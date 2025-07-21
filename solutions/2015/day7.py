@@ -27,6 +27,30 @@ EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
 
+'''
+https://wiki.python.org/moin/BitwiseOperators
+
+x << y
+    Returns x with the bits shifted to the left by y places (and new bits on the 
+    right-hand-side are zeros). This is the same as multiplying x by 2**y.
+x >> y
+    Returns x with the bits shifted to the right by y places. This is the same as 
+    floor division of x by 2**y.
+x & y
+    Does a "bitwise and". Each bit of the output is 1 if the corresponding bit of 
+    x AND of y is 1, otherwise it's 0.
+x | y
+    Does a "bitwise or". Each bit of the output is 0 if the corresponding bit of 
+    x AND of y is 0, otherwise it's 1.
+~ x
+    Returns the complement of x - the number you get by switching each 1 for a 0 
+    and each 0 for a 1. This is the same as -x - 1.
+x ^ y
+    Does a "bitwise exclusive or". Each bit of the output is the same as the 
+    corresponding bit in x if that bit in y is 0, and it's the complement of 
+    the bit in x if that bit in y is 1.
+'''
+
 def parse_data(data: str):
     line_list = [line for line in data.split('\n') if line]
     print(line_list)
@@ -37,7 +61,7 @@ def part_one(data: str):
 def part_two(data: str):
     __ = parse_data(data)
 
-# https://wiki.python.org/moin/BitwiseOperators
+
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
@@ -49,7 +73,9 @@ def main():
     random_tests()
 
 def random_tests():
-    ...
+    x = 5
+    print(x)
+    print(x << 2)
 
        
 if __name__ == '__main__':
