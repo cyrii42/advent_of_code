@@ -47,11 +47,11 @@ class Instruction:
         match self.action:
             case Action.TURN_ON:
                 grid[self.start.x:self.end.x+1, 
-                self.start.y:self.end.y+1] = 1
+                     self.start.y:self.end.y+1] = 1
                 return grid
             case Action.TURN_OFF:
                 grid[self.start.x:self.end.x+1, 
-                self.start.y:self.end.y+1] = 0
+                     self.start.y:self.end.y+1] = 0
                 return grid
             case Action.TOGGLE:
                 grid[self.start.x:self.end.x+1, 
