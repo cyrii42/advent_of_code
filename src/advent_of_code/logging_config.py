@@ -1,5 +1,8 @@
 from loguru import logger
+from pathlib import Path
+from advent_of_code.constants import LOGS_DIR
 import sys
+import os
 
 def setup_logging():
     logger.remove()
@@ -13,7 +16,7 @@ def setup_logging():
     )
     
     logger.add(
-        sink="app.log",
+        sink=LOGS_DIR / 'app.log',
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {file}:{line} | {message}",
         rotation="100 MB",
         retention="30 days",
