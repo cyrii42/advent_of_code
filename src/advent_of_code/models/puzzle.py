@@ -78,7 +78,6 @@ class Puzzle:
             else:
                 logger.debug(f"{self.year} DAY {self.day:02d} | All correct answers already found in database.")
 
-
     def find_answers_in_raw_html(self) -> None:
         if not self.raw_html:
             return None
@@ -194,8 +193,8 @@ class Puzzle:
             return cls(**row._asdict())
 
     def refresh_data_from_server(self):
-        raw_html = get_raw_html_from_server(self.year, self.day)
-        soup = BeautifulSoup(raw_html, 'html.parser')
+        self.raw_html = get_raw_html_from_server(self.year, self.day)
+        soup = BeautifulSoup(self.raw_html, 'html.parser')
 
         self.part_1_solved, self.part_2_solved = get_solved_statuses_from_soup(soup)
         self.title, self.part_1_description, self.part_2_description = get_puzzle_title_and_descriptions_from_soup(soup)
