@@ -9,7 +9,8 @@ from bs4 import BeautifulSoup
 
 from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR, TZ
 from advent_of_code.models import Puzzle, PuzzleAnswer, ResponseType
-from advent_of_code.exceptions import PuzzleNotFound, PuzzleAnswerAlreadySubmitted, AOCLoginException, ElementNotFound
+from advent_of_code.exceptions import (PuzzleNotFound, PuzzleAnswerAlreadySubmitted, 
+                                       PuzzleLevelAlreadySolved, AOCLoginException, ElementNotFound)
 from advent_of_code.logging_config import setup_logging
 
 setup_logging()
@@ -139,24 +140,11 @@ def submit(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
            answer: Annotated[str, typer.Argument()]):
     puzzle = get_puzzle(year, day)
 
-    level = 2 if puzzle.part_1_solved else 1
-
-    answer_obj = PuzzleAnswer(puzzle_id=puzzle.id,
-                              year=year,
-                              day=day,
-                              level=level,
-                              answer=answer)
-
     try:
-        answer_obj.submit()
-    except PuzzleAnswerAlreadySubmitted:
-        answer_obj.get_info_from_sql()
-        # print(answer_obj)
-        print(f"Answer {answer} ({'correct' if answer_obj.correct else 'incorrect'}) already submitted on",
-              f"{answer_obj.timestamp_dt.strftime("%Y-%m-%d @ %-I:%M %p")}",
-              f"({((dt.datetime.now(tz=TZ) - answer_obj.timestamp_dt).seconds) // 60} minutes ago)")
+        answer_obj = puzzle.submit_answer(answer)
+    except (PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved) as e:
+        print(e)
     else:
-        # print(answer_obj)
         print(answer_obj.raw_response)
         if answer_obj.correct:
             refresh(year, day)

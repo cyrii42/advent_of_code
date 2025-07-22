@@ -26,6 +26,13 @@ def get_puzzle_description_from_soup(soup: BeautifulSoup) -> tuple[str, str]:
     except IndexError:
         return (articles[0].get_text(), '')
 
+def get_puzzle_title_and_descriptions_from_soup(soup: BeautifulSoup) -> tuple[str, str, str]:
+    title = get_puzzle_title_from_soup(soup)
+        
+    part_1_description, part_2_description = get_puzzle_description_from_soup(soup)
+
+    return (title, part_1_description, part_2_description)
+
 def get_example_from_soup(soup: BeautifulSoup) -> str:
     example = soup.find('pre')
     

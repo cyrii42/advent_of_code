@@ -4,14 +4,15 @@ import requests
 from loguru import logger
 
 from advent_of_code.constants import AOC_SESSION, DATA_DIR, LATEST_AOC_YEAR
-from advent_of_code.models import Puzzle
+from advent_of_code.helpers import validate_year_and_day
+from advent_of_code.exceptions import AOCLoginException
 
-def do_initial_pull():
-    for year in range(2020, 2024):
-        for day in range(1, 26):
-            puzzle = Puzzle.from_server(year, day)
-            puzzle.write_data_files()
-            time.sleep(2)
+# def do_initial_pull():
+#     for year in range(2020, 2024):
+#         for day in range(1, 26):
+#             puzzle = Puzzle.from_server(year, day)
+#             puzzle.write_data_files()
+#             time.sleep(2)
 
 def download_html_file(year: int, day: int) -> None:
     url = f"https://adventofcode.com/{year}/day/{day}"
@@ -33,3 +34,22 @@ def download_all_html_files():
         for day in range(1, 26):
             download_html_file(year, day)
             time.sleep(5)
+
+def get_raw_html_from_server(year: int, day: int) -> str:
+    validate_year_and_day(year, day)
+        
+    url = f"https://adventofcode.com/{year}/day/{day}"
+    resp = requests.get(url, headers={"Cookie": f"session={AOC_SESSION}"})
+    resp.raise_for_status()
+    return resp.text
+
+def get_input_from_server(year: int, day: int) -> str:
+    validate_year_and_day(year, day)
+    
+    url = f"https://adventofcode.com/{year}/day/{day}/input"
+    resp = requests.get(url, headers={"Cookie": f"session={AOC_SESSION}"})
+    if 'Please log in to get your puzzle input.' in resp.text:
+        raise AOCLoginException('Please log in to get your puzzle input.')
+    else:
+        return resp.text
+

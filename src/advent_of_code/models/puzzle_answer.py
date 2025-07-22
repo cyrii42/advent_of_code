@@ -7,6 +7,7 @@ from typing import Optional, Self
 from enum import Enum
 
 import requests
+import humanize
 import sqlalchemy as db
 from bs4 import BeautifulSoup
 from loguru import logger
@@ -76,12 +77,6 @@ class PuzzleAnswer:
 
     @property
     def already_solved(self) -> bool:
-        # puzzle = get_puzzle_from_db_by_year_and_day(self.year, self.day)
-        # if self.level == 1 and puzzle.part_1_solved:
-        #     return True
-        # if self.level == 2 and puzzle.part_2_solved:
-        #     return True
-        
         with SQL_ENGINE.connect() as conn:
             stmt = (db.select(answers_table)
                       .where(answers_table.c.puzzle_id == self.puzzle_id)
@@ -110,45 +105,26 @@ class PuzzleAnswer:
     def submit(self) -> bool:
         if self.already_submitted:
             self.get_info_from_sql()
-            e = (f"Answer {self.answer} already submitted on",
-                 f"{self.timestamp_dt.strftime("%Y-%m-%d @ %-I:%M:%S %p")}",
-                 f"({((dt.datetime.now(tz=TZ) - self.timestamp_dt).seconds) // 60} minutes ago)")
+            e = (f"{self.year} Day #{self.day}: Answer \"{self.answer}\" already submitted on " + 
+                 f"{self.timestamp_dt.strftime("%Y-%m-%d at %-I:%M:%S %p")} " + 
+                 f"({humanize.naturaltime(dt.datetime.now(tz=TZ) - self.timestamp_dt)})")
             raise PuzzleAnswerAlreadySubmitted(e)
         
         correct_answer = self.get_correct_answer_from_db()
         if correct_answer:
-            e = (f"{self.year} DAY {self.day:2d} already solved on",
-                f"{correct_answer.timestamp_dt.strftime("%Y-%m-%d @ %-I:%M:%S %p")}",
-                f"({((dt.datetime.now(tz=TZ) - correct_answer.timestamp_dt).seconds) // 60} minutes ago)")
+            e = (f"{self.year} Day #{self.day} already solved on " + 
+                 f"{correct_answer.timestamp_dt.strftime("%Y-%m-%d at %-I:%M:%S %p")} " + 
+                 f"({humanize.naturaltime(dt.datetime.now(tz=TZ) - correct_answer.timestamp_dt)})")
             raise PuzzleLevelAlreadySolved(e)
 
         self.response_type, self.raw_response = self.post_to_server()
-
         self.correct = True if self.response_type == ResponseType.CORRECT else False
-        
-        # match self.response_type:
-        #     case ResponseType.CORRECT:
-        #         ...
-        #     case ResponseType.INCORRECT:
-        #         ...
-        #     case ResponseType.INCORRECT_TOO_HIGH:
-        #         ...
-        #     case ResponseType.INCORRECT_TOO_LOW:
-        #         ...
-        #     case ResponseType.WRONG_LEVEL:
-        #         ...
-        #     case ResponseType.TOO_SOON:
-        #         ...
-        #     case ResponseType.OTHER:
-        #         ...
 
         self.write_to_sql()
 
         return self.correct
             
-    def post_to_server(self) -> tuple[ResponseType, str]:
-        # return (True, 'Random choice') if random.randint(1, 2) == 1 else (False, 'Random choice')
-      
+    def post_to_server(self) -> tuple[ResponseType, str]:     
         url = f"https://adventofcode.com/{self.year}/day/{self.day}/answer"
         resp = requests.post(url, 
                              headers={"Cookie": f"session={AOC_SESSION}"},
@@ -170,18 +146,6 @@ class PuzzleAnswer:
             return (ResponseType.WRONG_LEVEL, message)
         if "You gave an answer too recently" in message:
             return (ResponseType.TOO_SOON, message)
-            # wait_pattern = r"You have (?:(\d+)m )?(\d+)s left to wait"
-            # try:
-            #     [(minutes, seconds)] = re.findall(wait_pattern, message)
-            # except ValueError:
-            #     return (False, message)
-            # else:
-            #     wait_time = int(seconds)
-            #     if minutes:
-            #         wait_time += 60 * int(minutes)
-            #     print(f"Waiting {wait_time} seconds to autoretry...")
-            #     time.sleep(wait_time)
-            #     return self.post_to_server()
         else:
             return (ResponseType.OTHER, message)
 
@@ -204,10 +168,12 @@ class PuzzleAnswer:
                         ))
             result = conn.execute(stmt)
             conn.commit()
-            correct_str = "correct" if self.correct else "incorrect"
-            log_msg = (f"{self.year} DAY {self.day:02d} | Answer {self.answer}",
-                       f"({correct_str}) written to DB with key {result.inserted_primary_key}.")
-            logger.info(log_msg)
+            
+        correct_str = "correct" if self.correct else "incorrect"
+        log_msg = (f"{self.year} DAY {self.day:02d} | Answer {self.answer}",
+                    f"({correct_str}) written to DB with key {result.inserted_primary_key}.")
+        logger.info(log_msg)
+
 
     def update_info_on_db(self) -> None:
         if not self.id:
@@ -229,6 +195,7 @@ class PuzzleAnswer:
             )
             conn.execute(stmt)
             conn.commit()
+
 
     def get_sql_id(self) -> int:
         with SQL_ENGINE.connect() as conn:
@@ -256,14 +223,3 @@ class PuzzleAnswer:
                 self.raw_response = result.raw_response
             else:
                 return None
-
-    def get_sql_object(self) -> AnswerSQL:
-        return AnswerSQL(puzzle_id=self.puzzle_id,
-                         year=self.year,
-                         day=self.day,
-                         timestamp=self.timestamp,
-                         level=self.level,
-                         answer=self.answer,
-                         correct=self.correct,
-                         response_type=self.response_type.name,
-                         raw_response=self.raw_response)
