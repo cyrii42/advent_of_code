@@ -219,3 +219,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+scripts/download_html_for_testing.py
