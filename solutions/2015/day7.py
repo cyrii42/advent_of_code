@@ -80,7 +80,69 @@ class WireSet:
             if key != 'b':
                 self.wires[key] = np.uint16(0)
         
-            
+    # def provide_signal(self, parts: list[str]) -> np.uint16:
+    #     item1, _, _ = parts
+    #     if item1.isdigit():
+    #         return np.uint16(item1)
+    #     else:
+    #         input_id = item1
+    #         return self.wires.get(input_id, np.uint16(0))
+
+    # def apply_not(self, parts: list[str]) -> np.uint16:
+    #     _, item1, _, _ = parts
+             
+    #     if item1.isdigit():
+    #         input_signal = np.uint16(item1)
+    #     else:
+    #         input_id = item1
+    #         input_signal = self.wires.get(input_id)
+
+    #     return ~input_signal if input_signal else np.uint16(0)
+
+    # def apply_other(self, parts: list[str]) -> np.uint16:
+    #     item1, func_name, item2, _, _ = parts
+    #     func = GATES[func_name]
+
+    #     if item1.isdigit():
+    #         input_signal_1 = np.uint16(item1)
+    #     else:
+    #         input_id_1 = item1
+    #         input_signal_1 = self.wires.get(input_id_1, np.uint16(0))
+
+    #     if item2.isdigit():
+    #         input_signal_2 = np.uint16(item2)
+    #     else:
+    #         input_id_2 = item2
+    #         input_signal_2 = self.wires.get(input_id_2, np.uint16(0))
+
+    #     # return func(input_signal_1, input_signal_2)
+    #     if input_signal_1 and input_signal_2:
+    #         return func(input_signal_1, input_signal_2)
+    #     else:
+    #         return np.uint16(0)
+
+    # def execute_instruction(self, instruction: str) -> None:
+    #     parts = instruction.split(' ')
+    #     output_id = parts[-1]
+
+    #     if len(parts) == 3:
+    #         output_signal = self.provide_signal(parts)
+
+    #     elif parts[0] == 'NOT':
+    #         output_signal = self.apply_not(parts)
+
+    #     elif parts[1] in ['LSHIFT', 'RSHIFT', 'AND', 'OR']:
+    #         output_signal = self.apply_other(parts)
+
+    #     else:
+    #         raise WireNotFound(parts, len(parts))
+
+    #     self.wires[output_id] = output_signal
+    #     # if output_signal:
+    #     #     self.wires[output_id] = output_signal
+    #     # else:
+    #     #     pass
+
     def execute_instruction(self, instruction: str) -> None:
         parts = instruction.split(' ')
 
@@ -135,12 +197,11 @@ class WireSet:
         else:
             raise WireNotFound(parts, len(parts))
 
-        self.wires[output_id] = output_signal
+        # self.wires[output_id] = output_signal
         # if output_signal:
         #     self.wires[output_id] = output_signal
         # else:
         #     pass
-    
 
 def parse_data(data: str) -> list[str]:
     line_list = [line for line in data.split('\n') if line]
