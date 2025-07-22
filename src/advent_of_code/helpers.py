@@ -5,11 +5,22 @@ from advent_of_code.logging_config import setup_logging
 
 setup_logging()
 
-def validate_year_and_day(year: int, day: int) -> None:
+def validate_year_and_day(year: int|str, day: int|str) -> None:
+    if isinstance(year, str):
+        try:
+            year = int(year)
+        except ValueError:
+            raise ValueError(f"Invalid year: {year} (must be between 2015 and {LATEST_AOC_YEAR})")
+    if isinstance(day, str):
+        try:
+            day = int(day)
+        except ValueError:
+            raise ValueError(f"Invalid day: {day} (must be between 1 and 25)")
+        
     if year < 2015 or year > LATEST_AOC_YEAR:
         raise ValueError(f"Invalid year: {year} (must be between 2015 and {LATEST_AOC_YEAR})")
-    if day < 1 or day > 31: 
-        raise ValueError(f"Invalid day: {day} (must be between 1 and 26)")
+    if day < 1 or day > 25: 
+        raise ValueError(f"Invalid day: {day} (must be between 1 and 25)")
     return None
 
 def make_solution_dirs():
