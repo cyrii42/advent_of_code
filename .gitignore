@@ -1,6 +1,7 @@
 data/
 scripts/
 **/*.html
+!tests/mock_html/*
 **/*.txt
 .env.adventofcode
 **/random_tests.py
