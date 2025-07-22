@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alive-progress>=3.2.0",
     "bs4>=0.0.2",
+    "humanize>=4.12.3",
     "loguru>=0.7.3",
     "pandas>=2.3.1",
     "polars>=1.31.0",
