@@ -31,7 +31,7 @@ def makedirs():
 
 @app.command(help="Refresh puzzle data from the AOC server")
 def refresh(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-            day: Annotated[int, typer.Argument(min=1, max=26)]):
+            day: Annotated[int, typer.Argument(min=1, max=25)]):
     try:
         puzzle = Puzzle.from_server(year, day)
     except (AOCLoginException, ElementNotFound):
@@ -44,7 +44,7 @@ def refresh(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
 
 @app.command(help='Print puzzle description')
 def description(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-                day: Annotated[int, typer.Argument(min=1, max=26)]):
+                day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
         
     print(puzzle.title + '\n')
@@ -55,14 +55,14 @@ def description(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEA
  
 @app.command(help='Print the Advent of Code URL')
 def url(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     print(puzzle.url)
 
 @app.command(help='Print info about the answers already given to a puzzle')
 def answers(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     table = Table()
@@ -81,14 +81,14 @@ def answers(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
 
 @app.command(help='Print the full dataclass repr for a given puzzle')
 def repr(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     print(puzzle)
 
 @app.command(help='Print information about a given puzzle')
 def info(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     table = Table(show_header=False)
@@ -110,33 +110,33 @@ def info(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
 
 @app.command(help='Print the example for a given puzzle')
 def example(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     print(puzzle.example_text)
 
 @app.command(help='Print the input for a given puzzle')
 def input(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     print(puzzle.input_text)
 
 @app.command(help='Print the full raw HTML for a given puzzle')
 def html(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=26)]):
+         day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
     soup = BeautifulSoup(puzzle.raw_html, 'html.parser')
     print(soup.prettify())
 
 # @app.command(help='XXXXXXXXXXXXXXXXXXXXXXXXXXXX')
 # def pull(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-#          day: Annotated[int, typer.Argument(min=1, max=26)]):
+#          day: Annotated[int, typer.Argument(min=1, max=25)]):
 #     print("NOT IMPLEMENTED YET")
 
 @app.command(help='Submit an answer to the Advent of Code server')
 def submit(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-           day: Annotated[int, typer.Argument(min=1, max=26)], 
+           day: Annotated[int, typer.Argument(min=1, max=25)], 
            answer: Annotated[str, typer.Argument()]):
     puzzle = get_puzzle(year, day)
 
