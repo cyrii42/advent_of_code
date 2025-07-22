@@ -1,4 +1,5 @@
 data/
+scripts/
 **/*.html
 **/*.txt
 .env.adventofcode
@@ -219,4 +220,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-scripts/download_html_for_testing.py
