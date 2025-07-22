@@ -2,6 +2,7 @@ import functools
 import itertools
 import json
 import math
+import operator
 import os
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -51,21 +52,165 @@ x ^ y
     the bit in x if that bit in y is 1.
 '''
 
-def parse_data(data: str):
+class WireNotFound(Exception):
+    pass
+
+GATES: dict[str, Callable] = {
+    'AND': operator.and_,
+    'OR': operator.or_,
+    'LSHIFT': operator.lshift,
+    'RSHIFT': operator.rshift
+}
+
+
+
+
+
+@dataclass
+class WireSet:
+    wires: dict[str, np.uint16] = field(default_factory=dict)
+
+    @property
+    def complete(self) -> bool:
+        return all(self.wires.values())
+
+    def reset_for_part_2(self, signal: np.uint16) -> None:
+        self.wires['b'] = np.uint16(signal)
+        for key in self.wires.keys():
+            if key != 'b':
+                self.wires[key] = np.uint16(0)
+        
+            
+    def execute_instruction(self, instruction: str) -> None:
+        parts = instruction.split(' ')
+
+        # 123 -> x
+        if len(parts) == 3:
+            item1, _, output_id = parts
+            if item1.isdigit():
+                output_signal = np.uint16(item1)
+            else:
+                input_id = item1
+                output_signal = self.wires.get(input_id, np.uint16(0))
+
+        # NOT
+        elif parts[0] == 'NOT':
+            _, item1, _, output_id = parts
+             
+            if item1.isdigit():
+                input_signal = np.uint16(item1)
+            else:
+                input_id = item1
+                input_signal = self.wires.get(input_id, np.uint16(0))
+
+            output_signal = ~input_signal
+            # if input_signal:
+            #     output_signal = ~input_signal
+            # else:
+            #     output_signal = None
+
+        # LSHIFT/RSHIFT/AND/OR
+        elif parts[1] in ['LSHIFT', 'RSHIFT', 'AND', 'OR']:
+            item1, func_name, item2, _, output_id = parts
+            func = GATES[func_name]
+
+            if item1.isdigit():
+                input_signal_1 = np.uint16(item1)
+            else:
+                input_id_1 = item1
+                input_signal_1 = self.wires.get(input_id_1, np.uint16(0))
+
+            if item2.isdigit():
+                input_signal_2 = np.uint16(item2)
+            else:
+                input_id_2 = item2
+                input_signal_2 = self.wires.get(input_id_2, np.uint16(0))
+
+            output_signal = func(input_signal_1, input_signal_2)
+            # if input_signal_1 and input_signal_2:
+            #     output_signal = func(input_signal_1, input_signal_2)
+            # else:
+            #     output_signal = None
+
+        else:
+            raise WireNotFound(parts, len(parts))
+
+        self.wires[output_id] = output_signal
+        # if output_signal:
+        #     self.wires[output_id] = output_signal
+        # else:
+        #     pass
+    
+
+def parse_data(data: str) -> list[str]:
     line_list = [line for line in data.split('\n') if line]
-    print(line_list)
+    return line_list
     
 def part_one(data: str):
-    __ = parse_data(data)
+    wire_set = WireSet()
+    instruction_list = parse_data(data)
+
+    # for instruction in instruction_list:
+    #     wire_set.execute_instruction(instruction)
+
+    for _ in range(100):
+        for instruction in instruction_list:
+            wire_set.execute_instruction(instruction)
+
+    # for key in sorted(wire_set.wires.keys()):
+    #     print(f"{key}: {wire_set.wires[key]}")
+
+    # print(wire_set.wires)
+    # print(f"Wire A:  {wire_set.wires.get('a')}")
+    # print(f"Wire B:  {wire_set.wires.get('b')}")
+    # print(sorted(wire_set.wires.keys()))
+
+    return wire_set.wires.get('a')
+    
 
 def part_two(data: str):
-    __ = parse_data(data)
+    wire_set = WireSet()
+    instruction_list = parse_data(data)
+
+    for instruction in instruction_list:
+        wire_set.execute_instruction(instruction)
+
+    for _ in range(1):
+        for instruction in instruction_list:
+            wire_set.execute_instruction(instruction)
+
+    wire_a = wire_set.wires.get('a', np.uint16(0))
+    print(f"Wire A (after part 2.1):  {wire_a}")
+
+    wire_set.reset_for_part_2(wire_a)
+
+    # print(wire_set.wires)
+
+    for instruction in instruction_list:
+        wire_set.execute_instruction(instruction)
+
+    for _ in range(100):
+        for instruction in instruction_list:
+            wire_set.execute_instruction(instruction)
+
+    for key in sorted(wire_set.wires.keys()):
+        print(f"{key}: {wire_set.wires[key]}")
+
+    # print(wire_set.wires)
+    # print(f"Wire A:  {wire_set.wires.get('a')}")
+    # print(f"Wire B:  {wire_set.wires.get('b')}")
+    # print(sorted(wire_set.wires.keys()))
+
+    return wire_set.wires.get('a')
+   
+
+    
 
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     # print()
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
     # print(f"Part Two (input):  {part_two(INPUT)}")
@@ -73,10 +218,7 @@ def main():
     random_tests()
 
 def random_tests():
-    x = 5
-    print(x)
-    print(x << 2)
-
+    print(operator.rshift(np.uint16(0), np.uint16(3)))
        
 if __name__ == '__main__':
     main()
