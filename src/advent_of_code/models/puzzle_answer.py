@@ -105,14 +105,14 @@ class PuzzleAnswer:
     def submit(self) -> bool:
         if self.already_submitted:
             self.get_info_from_sql()
-            e = (f"{self.year} Day #{self.day}: Answer \"{self.answer}\" already submitted on " + 
+            e = (f"{self.year} Day {self.day} Part {self.level}: Answer \"{self.answer}\" already submitted on " + 
                  f"{self.timestamp_dt.strftime("%Y-%m-%d at %-I:%M:%S %p")} " + 
                  f"({humanize.naturaltime(dt.datetime.now(tz=TZ) - self.timestamp_dt)})")
             raise PuzzleAnswerAlreadySubmitted(e)
         
         correct_answer = self.get_correct_answer_from_db()
         if correct_answer:
-            e = (f"{self.year} Day #{self.day} already solved on " + 
+            e = (f"{self.year} Day {self.day} Part {self.level} already solved on " + 
                  f"{correct_answer.timestamp_dt.strftime("%Y-%m-%d at %-I:%M:%S %p")} " + 
                  f"({humanize.naturaltime(dt.datetime.now(tz=TZ) - correct_answer.timestamp_dt)})")
             raise PuzzleLevelAlreadySolved(e)
@@ -170,7 +170,7 @@ class PuzzleAnswer:
             conn.commit()
             
         correct_str = "correct" if self.correct else "incorrect"
-        log_msg = (f"{self.year} DAY {self.day:02d} | Answer {self.answer}",
+        log_msg = (f"{self.year} DAY {self.day:02d} | Answer {self.answer} " + 
                     f"({correct_str}) written to DB with key {result.inserted_primary_key}.")
         logger.info(log_msg)
 
