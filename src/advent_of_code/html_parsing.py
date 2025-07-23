@@ -30,6 +30,8 @@ def get_puzzle_title_and_descriptions_from_soup(soup: BeautifulSoup) -> tuple[st
     title = get_puzzle_title_from_soup(soup)
         
     part_1_description, part_2_description = get_puzzle_description_from_soup(soup)
+    part_1_description = part_1_description.removeprefix(title)
+    part_2_description = part_2_description.removeprefix('--- Part Two ---')
 
     return (title, part_1_description, part_2_description)
 
