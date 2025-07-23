@@ -51,5 +51,5 @@ def get_input_from_server(year: int, day: int) -> str:
     if 'Please log in to get your puzzle input.' in resp.text:
         raise AOCLoginException('Please log in to get your puzzle input.')
     else:
-        return resp.text
+        return resp.text.removesuffix('\n')
 
