@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from pathlib import Path
 from pprint import pprint
-from string import ascii_letters
+from string import ascii_letters, ascii_lowercase, ascii_uppercase
 from typing import Callable, NamedTuple, Optional, Protocol, Self
 
 import numpy as np
