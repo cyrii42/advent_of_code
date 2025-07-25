@@ -16,6 +16,7 @@ import pandas as pd
 import polars as pl
 from alive_progress import alive_it
 from rich import print
+from rich.table import Table
 
 import advent_of_code as aoc
 
