@@ -52,8 +52,7 @@ class Reindeer:
         return self.position
 
     def fly_part_two(self, secs: int) -> None:
-        get_next_position = (self.get_position_from_race_time(time) for time in range(1, secs+1))
-        self.position_list = [x for x in get_next_position]
+        self.position_list = [self.get_position_from_race_time(time) for time in range(1, secs+1)]
 
     def add_point(self) -> None:
         self.points += 1
