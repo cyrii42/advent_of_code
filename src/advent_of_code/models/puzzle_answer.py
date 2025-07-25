@@ -162,7 +162,7 @@ class PuzzleAnswer:
             conn.commit()
             
         correct_str = "correct" if self.correct else "incorrect"
-        log_msg = (f"{self.year} DAY {self.day:02d} | Answer {self.answer} " + 
+        log_msg = (f"{self.year} DAY {self.day:02d} | Answer \"{self.answer}\" " + 
                     f"({correct_str}) written to DB with key {result.inserted_primary_key}.")
         logger.info(log_msg)
 
