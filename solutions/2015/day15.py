@@ -92,9 +92,6 @@ class Cookie:
 
         return functools.reduce(operator.mul, nums_to_multiply, 1)
 
-        
-    
-
 def parse_data(data: str):
     line_list = data.splitlines()
 
@@ -114,19 +111,14 @@ def parse_data(data: str):
     
 def part_one(data: str):
     ingredient_list = parse_data(data)
-    combos = (x for x in 
-              itertools.permutations([x for x in range(101)], len(ingredient_list)) 
-              if sum(x) == 100)
-
-    return max(Cookie(ingredient_list, combo).total_score for combo in combos)
-
+    combos = (x for x in itertools.product(range(101), repeat=len(ingredient_list)) if sum(x) == 100)
+    cookies = (Cookie(ingredient_list, combo) for combo in combos)
+    
+    return max(cookie.total_score for cookie in cookies)
         
 def part_two(data: str):
     ingredient_list = parse_data(data)
-    combos = (x for x in 
-              itertools.permutations([x for x in range(101)], len(ingredient_list)) 
-              if sum(x) == 100)
-
+    combos = (x for x in itertools.product(range(101), repeat=len(ingredient_list)) if sum(x) == 100)
     cookies = (Cookie(ingredient_list, combo) for combo in combos)
 
     return max(cookie.total_score for cookie in cookies if cookie.total_calories == 500)
