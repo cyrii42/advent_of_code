@@ -25,6 +25,24 @@ CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day'))
 
+EXAMPLES_PART_ONE = {
+    '[1,2,3]': 6,
+    '{"a":2,"b":4}': 6,
+    '[[[3]]]': 3,
+    '{"a":{"b":4},"c":-1}': 3,
+    '{"a":[-1,1]}': 0,
+    '[-1,{"a":1}]': 0,
+    '[]': 0,
+    '{}': 0
+}
+
+EXAMPLES_PART_TWO = {
+    '[1,2,3]': 6,
+    '[1,{"c":"red","b":2},3]': 4,
+    '{"d":"red","e":[1,2,3,4],"f":5}': 0,
+    '[1,"red",5]': 6
+}
+
 INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
 
@@ -35,56 +53,47 @@ def prettify(*args):
     arg_list = list(args)
     return [Pretty(arg) for arg in arg_list]
 
-def test_examples() -> None:
-    examples = {
-        '[1,2,3]': 6,
-        '{"a":2,"b":4}': 6,
-        '[[[3]]]': 3,
-        '{"a":{"b":4},"c":-1}': 3,
-        '{"a":[-1,1]}': 0,
-        '[-1,{"a":1}]': 0,
-        '[]': 0,
-        '{}': 0
-    }
-
+def test_examples(examples: dict[str, int], func: Callable) -> None:
     table = Table()
     table.add_column('Example', justify='left')
     table.add_column('Expected', justify='center')
     table.add_column('Actual', justify='center')
     table.add_column('Passed?', justify='center')
     for example, expected in examples.items():
-        print(f"Testing {example} ({type(example)})...")
-        result = part_one(example)
+        result = func(example)
         row_items = prettify(json.loads(example), expected, result, result == expected)
         table.add_row(*row_items)
     print(table)
-    
-def part_one(data: str):
-    s = parse_data(data)
-    obj = json.loads(s)
-    return traverse_json(obj)
 
-def traverse_json(obj: dict | list | str | int):
+def traverse_json(obj: dict | list | str | int, part_two: bool = False):
     output = 0
     if isinstance(obj, int):
         output += obj
     if isinstance(obj, list):
-        output += sum(traverse_json(x) for x in obj)
+        output += sum(traverse_json(x, part_two=part_two) for x in obj)
     if isinstance(obj, dict):
-        output += sum(traverse_json(v) for v in obj.values())
+        if part_two and 'red' in obj.values():
+            output += 0
+        else:
+            output += sum(traverse_json(v, part_two=part_two) for v in obj.values())
     return output
-        
+
+def part_one(data: str):
+    s = parse_data(data)
+    obj = json.loads(s)
+    return traverse_json(obj, part_two=False)
 
 def part_two(data: str):
-    __ = parse_data(data)
-
+    s = parse_data(data)
+    obj = json.loads(s)
+    return traverse_json(obj, part_two=True)
 
 
 def main():
-    test_examples()
+    test_examples(EXAMPLES_PART_ONE, part_one)
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print()
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    test_examples(EXAMPLES_PART_TWO, part_two)
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
