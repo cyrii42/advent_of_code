@@ -4,7 +4,6 @@ import random
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import Optional, Self
-from enum import Enum
 
 import requests
 import humanize
@@ -14,8 +13,9 @@ from loguru import logger
 from rich import print
 
 from advent_of_code.constants import AOC_SESSION, SQLITE_URL, TZ
+from advent_of_code.enums import ResponseType
 from advent_of_code.helpers import validate_year_and_day
-from advent_of_code.sql_schema import AnswerSQL, answers_table
+from advent_of_code.sql_schema import answers_table
 from advent_of_code.exceptions import InvalidAnswerLevel, PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved, PuzzleAnswerNotFound
 
 
@@ -24,16 +24,7 @@ SQL_ENGINE = db.create_engine(SQLITE_URL)
 def get_now_string():
     return dt.datetime.now(tz=TZ).strftime("%Y-%m-%dT%H:%M:%S%:z")
 
-class ResponseType(Enum):
-    NOT_YET_SUBMITTED = 1
-    NO_RESPONSE = 2
-    CORRECT = 3
-    INCORRECT = 4
-    INCORRECT_TOO_HIGH = 5
-    INCORRECT_TOO_LOW = 6
-    WRONG_LEVEL = 7
-    TOO_SOON = 8
-    OTHER = 9
+
 
 @dataclass
 class PuzzleAnswer:
@@ -66,14 +57,15 @@ class PuzzleAnswer:
                       .where(answers_table.c.level == self.level)
                       .where(answers_table.c.answer == self.answer))
             result = conn.execute(stmt).fetchone()
-            if result:
+
+            if not result:
+                return False
+            else:
                 self.timestamp = result.timestamp
                 self.timestamp_dt = dt.datetime.fromisoformat(result.timestamp).astimezone(TZ)
                 self.correct = result.correct
                 self.raw_response = result.raw_response
                 return True
-            else:
-                return False
 
     @property
     def already_solved(self) -> bool:
@@ -196,7 +188,6 @@ class PuzzleAnswer:
             conn.execute(stmt)
             conn.commit()
 
-
     def get_sql_id(self) -> int:
         with SQL_ENGINE.connect() as conn:
             stmt = (db.select(answers_table)
@@ -204,10 +195,11 @@ class PuzzleAnswer:
                       .where(answers_table.c.level == self.level)
                       .where(answers_table.c.answer == self.answer))
             result = conn.execute(stmt).fetchone()
-            if result:
-                return result.id
-            else:
+
+            if not result:
                 return 0
+            else:
+                return result.id
 
     def get_info_from_sql(self) -> None:
         with SQL_ENGINE.connect() as conn:
@@ -216,10 +208,9 @@ class PuzzleAnswer:
                       .where(answers_table.c.level == self.level)
                       .where(answers_table.c.answer == self.answer))
             result = conn.execute(stmt).fetchone()
+            
             if result:
                 self.timestamp = result.timestamp
                 self.timestamp_dt = dt.datetime.fromisoformat(result.timestamp).astimezone(TZ)
                 self.correct = result.correct
                 self.raw_response = result.raw_response
-            else:
-                return None
