@@ -29,7 +29,7 @@ INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
 
 def parse_data(data: str):
-    line_list = [line for line in data.split('\n') if line]
+    line_list = data.splitlines()
     
 def part_one(data: str):
     __ = parse_data(data)
