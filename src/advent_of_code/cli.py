@@ -1,14 +1,12 @@
 from typing import Annotated
-import datetime as dt
 
 import typer
-from loguru import logger
 from rich import print
 from rich.table import Table
 from bs4 import BeautifulSoup
 
-from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR, TZ
-from advent_of_code.models import Puzzle, PuzzleAnswer, ResponseType
+from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR
+from advent_of_code.models import Puzzle
 from advent_of_code.exceptions import (PuzzleNotFound, PuzzleAnswerAlreadySubmitted, 
                                        PuzzleLevelAlreadySolved, AOCLoginException, ElementNotFound)
 from advent_of_code.logging_config import setup_logging
