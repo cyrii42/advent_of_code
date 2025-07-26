@@ -30,23 +30,39 @@ DESCRIPTION = aoc.get_description(YEAR, DAY)
 
 def parse_data(data: str) -> list[int]:
     line_list = data.splitlines()
-    return [int(x) for x in line_list]
+    return sorted([int(x) for x in line_list], reverse=False)
     
 def part_one(data: str, target: int):
     container_sizes = parse_data(data)
+    all_iterables = [itertools.combinations(container_sizes, i) 
+                     for i in range(2, len(container_sizes)+1)]
+    all_combos = itertools.chain(*all_iterables)
+    all_matching_combos = (x for x in all_combos if sum(x) == target)
+
+    return sum(1 for _ in all_matching_combos)
 
 
-def part_two(data: str):
-    __ = parse_data(data)
+def part_two(data: str, target: int):
+    container_sizes = parse_data(data)
+    all_iterables = [itertools.combinations(container_sizes, i) 
+                     for i in range(2, len(container_sizes)+1)]
+    all_combos, all_combos_2 = itertools.tee(itertools.chain(*all_iterables), 2)
+    all_matching_combos = (x for x in all_combos if sum(x) == target)
+
+    min_containers = min(len(x) for x in all_combos_2 if sum(x) == target)
+    all_matching_min_combos = (x for x in all_matching_combos 
+                               if len(x) == min_containers)
+
+    return sum(1 for _ in all_matching_min_combos)
 
 
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE, target=25)}")
-    # print(f"Part One (input):  {part_one(INPUT, target=150)}")
-    # print()
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT, target=150)}")
+    print()
+    print(f"Part Two (example):  {part_two(EXAMPLE, target=25)}")
+    print(f"Part Two (input):  {part_two(INPUT, target=150)}")
 
     random_tests()
 
