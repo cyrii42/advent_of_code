@@ -3,6 +3,7 @@ import itertools
 import json
 import math
 import os
+import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
