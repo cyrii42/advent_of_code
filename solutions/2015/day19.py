@@ -25,7 +25,8 @@ CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day'))
 
-EXAMPLE = aoc.get_example(YEAR, DAY)
+EXAMPLE_PART_ONE = aoc.get_example(YEAR, DAY)
+EXAMPLE_PART_TWO = 'e => H\ne => O\nH => HO\nH => OH\nO => HH\n'
 INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
 
@@ -49,16 +50,20 @@ def parse_data(data: str) -> tuple[list[Replacement], str]:
     molecule = molecule if molecule else 'HOHOHO'       
     return r_list, molecule
 
+
+def find_new_molecules(r_list: list[Replacement], starting_molecule: str):
+    for r in r_list:
+        for m in re.finditer(r.start, starting_molecule):
+            start, end = m.span()
+            yield m.string[0:start] + r.end + m.string[end:]
+
     
 def part_one(data: str):
     r_list, molecule = parse_data(data)
 
     total_distinct_molecules = set()
-    for r in r_list:
-        for m in re.finditer(r.start, molecule):
-            start, end = m.span()
-            new_molecule = m.string[0:start] + r.end + m.string[end:]
-            total_distinct_molecules.add(new_molecule)
+    for new_molecule in find_new_molecules(r_list, molecule):
+        total_distinct_molecules.add(new_molecule)
             
     return len(total_distinct_molecules)
 
@@ -66,16 +71,17 @@ def part_one(data: str):
     
 
 def part_two(data: str):
-    __ = parse_data(data)
+    r_list, molecule = parse_data(data)
+    starting_electron = 'e'
 
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (example):  {part_one(EXAMPLE_PART_ONE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
     # print()
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     # random_tests()
 
