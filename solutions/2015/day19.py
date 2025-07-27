@@ -49,21 +49,16 @@ def parse_data(data: str) -> tuple[list[Replacement], str]:
 
     molecule = molecule if molecule else 'HOHOHO'       
     return r_list, molecule
-
-
-def find_new_molecules(r_list: list[Replacement], starting_molecule: str):
-    for r in r_list:
-        for m in re.finditer(r.start, starting_molecule):
-            start, end = m.span()
-            yield m.string[0:start] + r.end + m.string[end:]
-
     
 def part_one(data: str):
     r_list, molecule = parse_data(data)
 
     total_distinct_molecules = set()
-    for new_molecule in find_new_molecules(r_list, molecule):
-        total_distinct_molecules.add(new_molecule)
+    for r in r_list:
+        for m in re.finditer(r.start, molecule):
+            start, end = m.span()
+            new_molecule = m.string[0:start] + r.end + m.string[end:]
+            total_distinct_molecules.add(new_molecule)
             
     return len(total_distinct_molecules)
 
