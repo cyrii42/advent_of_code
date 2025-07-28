@@ -49,36 +49,78 @@ def parse_data(data: str) -> tuple[list[Replacement], str]:
 
     molecule = molecule if molecule else 'HOHOHO'       
     return r_list, molecule
-    
-def part_one(data: str):
-    r_list, molecule = parse_data(data)
 
-    total_distinct_molecules = set()
+def find_new_molecules(r_list: list[Replacement], starting_molecule: str) -> set[str]:
+    output_set = set()
+    
     for r in r_list:
-        for m in re.finditer(r.start, molecule):
+        for m in re.finditer(r.start, starting_molecule):
             start, end = m.span()
             new_molecule = m.string[0:start] + r.end + m.string[end:]
-            total_distinct_molecules.add(new_molecule)
-            
-    return len(total_distinct_molecules)
+            output_set.add(new_molecule)
 
+    return output_set
+    
+def part_one(data: str):
+    r_list, starting_molecule = parse_data(data)
+    distinct_new_molecules = find_new_molecules(r_list, starting_molecule)
+    return len(distinct_new_molecules)
+
+
+
+def fabricate_target_molecule(r_list: list[Replacement], 
+                              start_str: str,
+                              target_str: str,
+                              count: int = 0) -> int:
+
+    if start_str == target_str:
+        return count
+    
+    for r in r_list:
+        if r.start in start_str:
+            for m in re.finditer(r.start, start_str):
+                start, end = m.span()
+                new_start_str = m.string[0:start] + r.end + m.string[end:]
+                if new_start_str == start_str:
+                    continue
+                if new_start_str == target_str:
+                    return count
+                
+                return fabricate_target_molecule(r_list, new_start_str, target_str, count+1)
+
+    return count
+
+            
+            
+        
+        
+    
+
+        
 
     
 
 def part_two(data: str):
-    r_list, molecule = parse_data(data)
-    starting_electron = 'e'
+    r_list, target_str = parse_data(data)
+    start_str = 'e'
+
+    return fabricate_target_molecule(r_list, start_str, target_str)
+
+    
+
+    for r in r_list:
+        ...
 
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE_PART_ONE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
-    # print()
+    # print(f"Part One (example):  {part_one(EXAMPLE_PART_ONE)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
+    # # print()
     print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    # print(f"Part Two (input):  {part_two(INPUT)}")
 
-    # random_tests()
+    random_tests()
 
 def random_tests():
     ...
