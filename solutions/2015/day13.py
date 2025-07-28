@@ -69,7 +69,7 @@ class PairSet:
         
         return pair1.value + pair2.value
 
-    def get_result_from_permutation(self, perm: tuple)-> int:
+    def get_result_from_permutation(self, perm: tuple[str, ...]) -> int:
         output = 0
         for i, name in enumerate(perm):
             try:
