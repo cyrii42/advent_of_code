@@ -36,7 +36,7 @@ answers_table = Table(
     Column('correct', Boolean),
     Column('response_type', Text),
     Column('raw_response', Text),
-    UniqueConstraint('puzzle_id', 'level', 'answer'), 
+    UniqueConstraint('puzzle_id', 'level', 'answer', 'response_type'), 
 )
 
 class Base(DeclarativeBase):

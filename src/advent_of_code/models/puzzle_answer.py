@@ -55,7 +55,8 @@ class PuzzleAnswer:
             stmt = (db.select(answers_table)
                       .where(answers_table.c.puzzle_id == self.puzzle_id)
                       .where(answers_table.c.level == self.level)
-                      .where(answers_table.c.answer == self.answer))
+                      .where(answers_table.c.answer == self.answer)
+                      .where(answers_table.c.response_type != "TOO_SOON"))
             result = conn.execute(stmt).fetchone()
 
             if not result:
@@ -144,6 +145,12 @@ class PuzzleAnswer:
     def write_to_sql(self) -> None:
         if self.already_submitted:
             raise PuzzleAnswerAlreadySubmitted
+
+        if self.response_type == ResponseType.TOO_SOON:
+            log_msg = (f"{self.year} DAY {self.day:02d} | Answer \"{self.answer}\" " + 
+                       "submitted too soon.  Not written to database.")
+            logger.info(log_msg)
+            return
         
         with SQL_ENGINE.connect() as conn:
             stmt = (db.insert(answers_table)
@@ -161,9 +168,8 @@ class PuzzleAnswer:
             result = conn.execute(stmt)
             conn.commit()
             
-        correct_str = "correct" if self.correct else "incorrect"
         log_msg = (f"{self.year} DAY {self.day:02d} | Answer \"{self.answer}\" " + 
-                    f"({correct_str}) written to DB with key {result.inserted_primary_key}.")
+                    f"({self.response_type}) written to DB with key {result.inserted_primary_key}.")
         logger.info(log_msg)
 
 
