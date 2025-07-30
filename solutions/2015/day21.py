@@ -151,13 +151,9 @@ class Character:
     def defense(self, value: int):
         self._defense = value
 
-    def take_damage(self, opponent: "Character"):
-        damage_inflicted = max(1, opponent.damage-self.defense)
-        self.HP = max(0, self.HP-damage_inflicted)
-
     def attack(self, opponent: "Character"):
-        damage_inflicted = max(1, self.damage-opponent.defense)
-        opponent.HP = max(0, opponent.HP-damage_inflicted)
+        damage_inflicted = max(1, self.damage - opponent.defense)
+        opponent.HP = max(0, opponent.HP - damage_inflicted)
     
 
 @dataclass
@@ -196,7 +192,7 @@ class Player(Character):
         try:
             self._add_item(item_to_add)
         except InventoryException as e:
-            print(f"ERROR: {e}")
+            # print(f"ERROR: {e}")
             return
 
     def _add_item(self, item_to_add: Item):
@@ -309,17 +305,52 @@ def part_one(data: str):
             return min(win_list)
 
 def part_two(data: str):
-    ...
+    weapons = [Item(*x) for x in WEAPON_SHOP]
+    armor = [Item(*x) for x in ARMOR_SHOP]
+    rings = [Item(*x) for x in RING_SHOP]
+    
+    boss_hp, boss_damage, boss_defense = parse_data(data)
+    boss = Boss(boss_hp, boss_damage, boss_defense)
+
+    loadouts = (x for x in itertools.product([None, 0, 1, 2, 3, 4, 5], repeat=4) 
+                if x[0] != 5
+                and x[1] != 5
+                and not (x[2] and x[3] and x[2] == x[3]))
+
+    win_list = []
+    
+    # for _ in range(450):
+    #     next(loadouts)
+
+    while True:
+        try:
+            weapon_idx, armor_idx, ring1_idx, ring2_idx = next(loadouts)
+            boss = Boss(109, 8, 2)
+            player = Player(100)
+            if weapon_idx is not None:
+                player.add_item(weapons[weapon_idx])
+            if armor_idx is not None:
+                player.add_item(armor[armor_idx])
+            if ring1_idx is not None:
+                player.add_item(rings[ring1_idx])
+            if ring2_idx is not None:
+                player.add_item(rings[ring2_idx])
+            player_wins, gold_spent = simulate_game(player, boss, print_info=False)
+            if not player_wins and gold_spent > 220:
+                print(f"Boss wins!  Gold spent: {gold_spent}")
+                win_list.append(gold_spent)
+        except StopIteration:
+            return max(win_list)
 
 
 
 
 def main():
     # print(f"Part One (example):  {example_part_one()}")
-    print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
     # print()
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
