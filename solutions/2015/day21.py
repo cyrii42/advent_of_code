@@ -109,10 +109,16 @@ RING_SHOP = [
     ('Defense +3', ItemType.RING, 80, 0, 3),
 ]
 
-class InventoryFull(Exception):
+class InventoryException(Exception):
     pass
 
-class ItemNotAvailable(Exception):
+class InventoryFull(InventoryException):
+    pass
+
+class ItemMax(InventoryException):
+    pass
+
+class ItemNotAvailable(InventoryException):
     pass
 
 @dataclass
@@ -126,8 +132,24 @@ class Item:
 @dataclass
 class Character:
     HP: int
-    damage: int
-    defense: int
+    _damage: int = field(default=0, repr=False)
+    _defense: int = field(default=0, repr=False)
+
+    @property
+    def damage(self):
+        return self._damage
+
+    @damage.setter
+    def damage(self, value: int):
+        self._damage = value
+
+    @property
+    def defense(self):
+        return self._defense
+
+    @defense.setter
+    def defense(self, value: int):
+        self._defense = value
 
     def take_damage(self, opponent: "Character"):
         damage_inflicted = max(1, opponent.damage-self.defense)
@@ -145,94 +167,60 @@ class Boss(Character):
 
 @dataclass
 class Player(Character):
-    equipped_weapon: Optional[Item] = None
-    equipped_armor: Optional[Item] = None
-    equipped_rings: list[Item] = field(default_factory=list)
+    inventory: list[Item] = field(default_factory=list)
+
+    @property
+    def damage(self):
+        return sum(item.damage for item in self.inventory)
+
+    @damage.setter
+    def damage(self, value: int):
+        self._damage = value
+
+    @property
+    def defense(self):
+        return sum(item.defense for item in self.inventory)
+
+    @defense.setter
+    def defense(self, value: int):
+        self._defense = value
 
     @property
     def total_gold_spent(self) -> int:
         return sum(item.cost for item in self.inventory)
 
-    @property
-    def inventory(self) -> list[Item]:
-        output = deepcopy(self.equipped_rings)
-        if self.equipped_weapon:
-            output.append(deepcopy(self.equipped_weapon))
-        if self.equipped_armor:
-            output.append(deepcopy(self.equipped_armor))
-        return output
-
     def clear_inventory(self):
-        self.equipped_weapon = None
+        self.inventory = list()
 
-        self.equipped_armor = None
-        self.defense = 0
-        self.equipped_rings = list()
-        self.defense = 0
-        self.damage = 0
+    def add_item(self, item_to_add: Item):
+        try:
+            self._add_item(item_to_add)
+        except InventoryException as e:
+            print(f"ERROR: {e}")
+            return
+
+    def _add_item(self, item_to_add: Item):
+        if len(self.inventory) >= 4:
+            raise InventoryFull(f"Inventory already contains {len(self.inventory)} items.  Cannot add more.")
+
+        max_items = 2 if item_to_add.type == ItemType.RING else 1
+        if len([item for item in self.inventory if item.type == item_to_add.type]) >= max_items:
+            raise ItemMax(f"Inventory already contains maximum ({max_items}) of type \"{item_to_add.type.name}\"")
+
+        if item_to_add in self.inventory:
+            raise ItemNotAvailable(f"Item {item_to_add.name} is already in inventory.")
+
+        self.inventory.append(item_to_add)
 
     def remove_item(self, item_to_remove: Item):
-        match item_to_remove.type:
-            case ItemType.WEAPON:
-                if not self.equipped_weapon:
-                    print("No weapon equipped.")
-                    return
-                if self.equipped_weapon != item_to_remove:
-                    print(f"Cannot remove weapon {item_to_remove.name}; does not match",
-                          f"currently equipped weapon {self.equipped_weapon.name}")
-                    return
-                if self.equipped_weapon == item_to_remove:
-                    print(f"Removing equipped weapon:  \"{self.equipped_weapon.name}\" (damage: {self.equipped_weapon.damage})")
-                    self.equipped_weapon = None
-            case ItemType.ARMOR:
-                if not self.equipped_armor:
-                    print("No armor equipped.")
-                    return
-                if self.equipped_armor != item_to_remove:
-                    print(f"Cannot remove armor \"{item_to_remove.name}\"; does not match",
-                          f"currently equipped armor \"{self.equipped_armor.name}\"")
-                    return
-                else:
-                    print(f"Removing equipped armor:  \"{self.equipped_armor.name}\" (defense: {self.equipped_armor.defense})")
-                    self.equipped_armor = None
-            case ItemType.RING:
-                if item_to_remove not in self.equipped_rings:
-                    print(f"Ring \"{item_to_remove.name}\" is not in current inventory; cannot remove.")
-                    return
-                else:
-                    idx = [i for i, ring in enumerate(self.equipped_rings) if ring == item_to_remove][0]
-                    print(f"Removing equipped ring:  \"{item_to_remove.name}\"")
-                    self.equipped_rings.pop(idx)
-    
-    def add_item(self, item: Item):
-        match item.type:
-            case ItemType.WEAPON:
-                self.equipped_weapon = item
-                self.damage += item.damage
-                # print(f"New weapon equipped: \"{item.name}\" (cost: {item.cost})")
-            case ItemType.ARMOR:
-                self.equipped_armor = item
-                self.defense = item.defense
-                # print(f"New armor equipped: \"{item.name}\" (cost: {item.cost})")
-            case ItemType.RING:
-                if item in self.equipped_rings:
-                    print(f"Ring \"{item.name}\" already in inventory.  Cannot add.")
-                    return
-                if len(self.equipped_rings) == 2:
-                    outgoing = self.equipped_rings.pop(0)
-                    self.damage -= outgoing.damage
-                    self.defense -= outgoing.defense
-                    print(f"Ring inventory full.  Removing first-equipped ring (\"{outgoing.name}\")",
-                          f"and replacing with \"{item.name}\" (cost: {item.cost})")
-                # else:
-                    # print(f"New ring equipped: \"{item.name}\" (cost: {item.cost})")
-                self.equipped_rings.append(item)
-                self.damage += item.damage
-                self.defense = item.defense
+        if item_to_remove not in self.inventory:
+            print(f"Item \"{item_to_remove.name}\" is not in current inventory; cannot remove.")
+            return
 
-    def clear_ring_inventory(self):
-        print("Clearing ring inventory.  No rings equipped.")
-        self.equipped_rings = list()
+        else:
+            idx = [i for i, item in enumerate(self.inventory) if item == item_to_remove][0]
+            print(f"Removing equipped item:  \"{item_to_remove.name}\"")
+            self.inventory.pop(idx)
 
     
 
@@ -277,10 +265,12 @@ def simulate_game(player: Player, boss: Boss, print_info: bool = True) -> tuple[
 def example_part_one():
     weapons = [Item(*x) for x in WEAPON_SHOP]
     armor = [Item(*x) for x in ARMOR_SHOP]
-    rings = [Item(*x) for x in RING_SHOP]
 
     boss = Boss(12, 7, 2)
-    player = Player(8, 5, 5)
+    
+    player = Player(8)
+    player.add_item(weapons[1])
+    player.add_item(armor[4])
 
     simulate_game(player, boss)
     
@@ -292,49 +282,35 @@ def part_one(data: str):
     
     boss_hp, boss_damage, boss_defense = parse_data(data)
     boss = Boss(boss_hp, boss_damage, boss_defense)
-    player = Player(100, 0, 0)
-    
-    simulate_game(player, boss, print_info=False)
-    print('---------------------------')
 
-    unequipped_loss_margin = boss.HP
-
-    a = deepcopy(weapons)
-    b = deepcopy(armor)
-    c = deepcopy(rings)
-    d = deepcopy(rings)
-
-    loadouts = (x for x in itertools.product(a, b, c, d) if x[2] != x[3])
+    loadouts = (x for x in itertools.product([None, 0, 1, 2, 3, 4, 5], repeat=4) 
+                if x[0] != 5
+                and x[1] != 5
+                and not (x[2] and x[3] and x[2] == x[3]))
 
     win_list = []
     while True:
         try:
-            player.clear_inventory()
-            player.HP = 100
-            boss.HP = boss_hp
-            
-            next_try = next(loadouts)
-            for item in next_try:
-                player.add_item(item)
-            
+            weapon_idx, armor_idx, ring1_idx, ring2_idx = next(loadouts)
+            boss = Boss(109, 8, 2)
+            player = Player(100)
+            if weapon_idx is not None:
+                player.add_item(weapons[weapon_idx])
+            if armor_idx is not None:
+                player.add_item(armor[armor_idx])
+            if ring1_idx is not None:
+                player.add_item(rings[ring1_idx])
+            if ring2_idx is not None:
+                player.add_item(rings[ring2_idx])
             player_wins, gold_spent = simulate_game(player, boss, print_info=False)
-
             if player_wins:
-                print(f"WIN!  {gold_spent}")
                 win_list.append(gold_spent)
         except StopIteration:
             return min(win_list)
-        
-
-'''
-STOPPING FOR NOW, BUT:  YOUR PROBLEM IS THAT YOU'RE ONLY ITERATING THROUGH THE SCENARIOS
-WHERE EVERY INVENTORY SLOT IS FILLED.  THERE MIGHT BE WINNING SCENARIOS WHERE SOME ARE EMPTY!
-'''
-
-
 
 def part_two(data: str):
-    __ = parse_data(data)
+    ...
+
 
 
 
@@ -349,7 +325,7 @@ def main():
 
 def random_tests():
     ...
-
+        
        
 if __name__ == '__main__':
     main()
