@@ -2,6 +2,7 @@ import functools
 import itertools
 import json
 import math
+import operator
 import os
 import re
 from copy import deepcopy
@@ -51,18 +52,56 @@ class Elf:
     def next_delivery(self) -> tuple[int, int]:
         return self.delivery.__next__()
 
-def elf_generator(elf_id: int) -> Generator[tuple[int, int]]:
-    i = 1
-    while True:
-        i += 1
-        yield (elf_id * i, elf_id * 10) 
 
-    
-def get_nth_house(n: int) -> int:
-    ...
+
+def determine_house_presents(house_num: int) -> int:
+    '''The first house gets 10 presents: it is visited only by Elf 1, 
+    which delivers 1 * 10 = 10 presents. The fourth house gets 70 presents, 
+    because it is visited by Elves 1, 2, and 4, for a total of 10 + 20 + 40 = 70 presents.
+
+    So:  For a given house n, the house is visited by Elf #n, plus all other Elves 
+    between 1 and n whose numbers are divisible by n
+    '''
+    return sum(x*10 for x in range(1, house_num+1) if house_num % x == 0)
+
+def factors(n):
+    return set(functools.reduce(
+        list.__add__,
+        ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
+
     
 def part_one(data: str):
     target = parse_data(data)
+
+    factor_dict = {i: sum(factors(i)) for i in range(1, 101)}
+
+    print(sorted(factor_dict.items(), key=lambda x: x[1], reverse=True))
+
+    # for i in range(1, 101):
+    #     print(f"{i}: {sum(factors((i))):,}")
+
+    # print()
+    # print(sum([x*10 for x in factors(300000000)]))
+    # print(sum(determine_house_presents(300000000)))
+    
+
+    # n = 1
+    # while True:
+    #     if sum(factors((n))) >= target:
+    #         return n
+    #     else:
+    #         n += 1
+
+
+    
+    # print({i: [x for x in range(1, 11) if x % i == 0] for i in range(1, 11)})
+
+    # n = 1
+    # while True:
+    #     if get_result_for_house_n(n) >= target:
+    #         return n
+    #     else:
+    #         n += 1
 
     # houses = [House(x) for x in range(1, 1000)]
 
@@ -76,17 +115,31 @@ def part_one(data: str):
 
     # print([house for house in houses[0:10]])
 
-    elf = Elf(3)
-    for _ in range(5):
-        print(elf.next_delivery)
+    # elf = Elf(3)
+    # for _ in range(5):
+    #     print(elf.next_delivery)
 
 def part_two(data: str):
     __ = parse_data(data)
 
 
+def get_cum_sum_for_house_n(n):
+    elves_dict = {i: [x for x in range(1, n+1) if x % i == 0] for i in range(1, 11)}
+
+    elves_per_house = [[key for key, val in elves_dict.items() if y in val] for y in range(1, n+1)]
+
+    output = 0
+    for house in range(n):
+        print(f"House {house}: {elves_per_house[house]} ({sum(elf*10 for elf in elves_per_house[house])})")
+        output += sum(elf*10 for elf in elves_per_house[house])
+    return output
+        
+
+
 
 def main():
-    check_example_part_one()
+    # print(get_result_for_house_n(4))
+    # check_example_part_one()
     print(f"Part One (input):  {part_one(INPUT)}")
     # print()
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
@@ -96,6 +149,22 @@ def main():
 
 def random_tests():
     ...
+    # get_sum_for_house_num(7)
+    # for i in range (1, 11):
+    #     print(f"Elf #{i}: {[x for x in range(1, 11) if x % i == 0]}")
+
+    # elves_dict = {i: [x for x in range(1, 11) if x % i == 0] for i in range(1, 11)}
+
+    # for y in range(1, 11):
+    #     elves = [key for key, val in elves_dict.items() if y in val]
+    #     print(f"House #{y}: {sum(elf*10 for elf in elves)} (present in {elves})")
+    
+    # print(sum(x*10 for x in range(1, 8) if x % 7 == 0))
+    # print()
+    # output = 0
+    # for i in range(1, 11):
+    #     output += sum(x*10 for x in range(1, i+i) if i % x == 0)
+    #     print(output)
 
        
 if __name__ == '__main__':
