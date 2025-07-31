@@ -35,7 +35,9 @@ def main():
 def find_part_one_answer():
     race_list = [Race(x[0], x[1]) for x in INPUT_RACES_PART_ONE]
     ways_to_win_list = [race.ways_to_win for race in race_list]
-    for i, x in enumerate(ways_to_win_list):
+
+    output = 0
+    for i in range(len(ways_to_win_list)):
         if i == 0:
             output = ways_to_win_list[0]
         else:
