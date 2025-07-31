@@ -1,3 +1,4 @@
+import pathlib
 import functools
 import itertools
 import json
@@ -7,8 +8,6 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from pathlib import Path
-from pprint import pprint
 from string import ascii_letters, ascii_lowercase, ascii_uppercase
 from typing import Callable, NamedTuple, Optional, Protocol, Self
 
@@ -16,12 +15,12 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from alive_progress import alive_it
-from rich import print
 from rich.table import Table
+from rich import print
 
 import advent_of_code as aoc
 
-CURRENT_FILE = Path(__file__)
+CURRENT_FILE = pathlib.Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day'))
 
