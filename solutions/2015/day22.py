@@ -31,7 +31,13 @@ DESCRIPTION = aoc.get_description(YEAR, DAY)
 class InsufficientMana(Exception):
     pass
 
+class OutOfMana(Exception):
+    pass
+
 class NoActiveSpell(Exception):
+    pass
+
+class EffectAlreadyActive(Exception):
     pass
 
 class Spell(Enum):
@@ -80,16 +86,18 @@ class Player:
 
         if self.shield_active:
             self.defense = 7  # prompt says "increased by 7" but it's otherwise always zero
-            self.shield_timer -= 0
+            self.shield_timer -= 1
+            if print_info:
+                print(f"Player's SHIELD spell is active ({self.shield_timer} turns left)!")
             if self.shield_timer <= 0:
                 self.shield_active = False
-                self.armor = 0  # resetting SHIELD (or just keeping it at zero)
+                self.defense = 0  # resetting SHIELD (or just keeping it at zero)
         if self.poison_active:
             boss.HP -= 3
             self.poison_timer -= 1
             if print_info:
                 print(f"Player's POISON spell is active ({self.poison_timer} turns left)!",
-                  f"Player HP: {self.HP} Player mana: {self.mana} | Boss HP: {boss.HP}")
+                  f"Boss HP: {boss.HP}")
             if self.poison_timer <= 0:
                 self.poison_active = False
         if self.recharge_active:
@@ -97,55 +105,149 @@ class Player:
             self.recharge_timer -= 1
             if print_info:
                 print(f"Player's RECHARGE spell is active ({self.recharge_timer} turns left)!",
-                  f"Player HP: {self.HP} Player mana: {self.mana} | Boss HP: {boss.HP}")
+                  f"Player mana: {self.mana}")
             if self.recharge_timer <= 0:
                 self.recharge_active = False
 
     def spend_mana(self, spell: Spell):
         cost = SPELL_PRICES[spell]
+        if self.mana < min(v for v in SPELL_PRICES.values()):
+            raise OutOfMana("Player does not have enough mana to cast any spell.")
+        if self.mana < cost:
+            raise InsufficientMana(f"Player has insufficent mana ({self.mana}) to cast {spell.name} (cost: {cost})!")
         self.mana -= cost
-        if self.mana < 0:
-            raise InsufficientMana
         self.total_mana_spent += cost
 
-    def cast_spell(self, spell: Spell, boss: Boss, print_info: bool = True):      
-        self.spend_mana(spell)
-            
+    def cast_spell(self, spell: Spell, boss: Boss, print_info: bool = True):                  
         match spell:
             case Spell.MAGIC_MISSILE:
+                self.spend_mana(spell)
                 boss.HP -= 4
             case Spell.DRAIN:
+                self.spend_mana(spell)
                 boss.HP -= 2
                 self.HP += 2
             case Spell.SHIELD:
                 if self.shield_active:
-                    if print_info:
-                        print("SHIELD is already active.")
-                    return
+                    raise EffectAlreadyActive("SHIELD is already active.")
+                self.spend_mana(spell)
                 self.defense = 7  # prompt says "increased by 7" but it's otherwise always zero
                 self.shield_active = True
                 self.shield_timer = 6
             case Spell.POISON:
                 if self.poison_active:
-                    if print_info:
-                        print("POISON is already active.")
-                    return
+                    raise EffectAlreadyActive("POISON is already active.")
+                self.spend_mana(spell)
                 self.poison_active = True
                 self.poison_timer = 6
             case Spell.RECHARGE:
                 if self.recharge_active:
-                    if print_info:
-                        print("RECHARGE is already active.")
-                    return
+                    raise EffectAlreadyActive("RECHARGE is already active.")
+                self.spend_mana(spell)
                 self.recharge_active = True
                 self.recharge_timer = 5
+
                 
+def get_spell_from_user() -> Spell:
+    msg = "Which spell?  Magic Missile (53) | Drain (73) | Shield (113) | Poison (173) | Recharge (229)?  "
+    choice = input(msg).upper()
+    if choice not in ['MM', 'MAGIC MISSILE', 'D', 'DRAIN', 'S', 'SHIELD', 'P', 'POISON', 'R', 'RECHARGE']:
+        print("INVALID INPUT")
+        return get_spell_from_user()
+
+    match choice:
+        case 'MM' | 'MAGIC MISSILE':
+            return Spell.MAGIC_MISSILE
+        case 'D' | 'DRAIN':
+            return Spell.DRAIN
+        case 'S' | 'SHIELD':
+            return Spell.SHIELD
+        case 'P' | 'POISON':
+            return Spell.POISON
+        case 'R' | 'RECHARGE':
+            return Spell.RECHARGE
+        case _:
+            raise ValueError
+            
+
+def play_game(player: Player, boss: Boss, hard_mode: bool = False) -> tuple[bool, int]:
+    ''' Returns a tuple: true/false for player win, and total gold spent by the player '''
+    n = 0
+    spells_cast = []
+    while player.HP > 0 and boss.HP > 0:
+        print(f"\n------ ROUND {n+1} -------")
+        print(f"Player: {player.HP} HP, {player.mana} mana, {player.defense} defense | Boss HP: {boss.HP}")
+        if n % 2 == 0:
+            if hard_mode:
+                player.HP -= 1
+                if player.HP <= 0:
+                    break
+            spell = get_spell_from_user()
+            player.apply_current_effects(boss)
+            if boss.HP <= 0:
+                break
+
+            try:
+                player.cast_spell(spell, boss)
+            except EffectAlreadyActive as e:
+                print(e)
+                while True:
+                    try:
+                        spell = get_spell_from_user()
+                        player.cast_spell(spell, boss)
+                        break
+                    except EffectAlreadyActive as e:
+                        print(e)
+                        continue
+            except InsufficientMana as e:
+                print(e)
+                while True:
+                    try:
+                        spell = get_spell_from_user()
+                        player.cast_spell(spell, boss)
+                        break
+                    except InsufficientMana as e:
+                        print(e)
+                        continue
+                    except EffectAlreadyActive as e:
+                        print(e)
+                        while True:
+                            try:
+                                spell = get_spell_from_user()
+                                player.cast_spell(spell, boss)
+                                break
+                            except EffectAlreadyActive as e:
+                                print(e)
+                                continue
+            except OutOfMana as e:
+                print(e)
+                n += 1
+                continue
+            else:
+                spells_cast.append(spell)
+                print(f"Player casts {spell.name}!")
+        else:
+            player.apply_current_effects(boss)
+            if boss.HP <= 0:
+                break
+            boss.attack(player)
+            print("Boss attacks!")
+        n += 1
+
+    print_game_info(player, boss, n)
+        
+    player_wins = player.mana > 0 and player.HP > boss.HP
+    if player_wins:
+        print(spells_cast)
+    return (player_wins, player.total_mana_spent)
 
 
 
-
-
-def simulate_game(player: Player, boss: Boss, spell_list: tuple[Spell, ...], print_info: bool = True) -> tuple[bool, int]:
+def simulate_game(player: Player, 
+                  boss: Boss, 
+                  spell_list: tuple[Spell, ...], 
+                  print_info: bool = True,
+                  hard_mode: bool = False) -> tuple[bool, int]:
     ''' Returns a tuple: true/false for player win, and total gold spent by the player '''
     n = 0
     spell_num = 0
@@ -155,6 +257,10 @@ def simulate_game(player: Player, boss: Boss, spell_list: tuple[Spell, ...], pri
         if print_info:
             print(f"------ ROUND {n+1} -------")
         if n % 2 == 0:
+            if hard_mode:
+                player.HP -= 1
+                if player.HP <= 0:
+                    break
             player.apply_current_effects(boss, print_info=print_info)
             if boss.HP <= 0:
                 break
@@ -171,7 +277,7 @@ def simulate_game(player: Player, boss: Boss, spell_list: tuple[Spell, ...], pri
                 spell_num += 1
                 if print_info:
                     print(f"Player casts {spell.name}! Player HP: {player.HP} Player mana: {player.mana} | Boss HP: {boss.HP}")
-            except InsufficientMana:
+            except (OutOfMana, InsufficientMana):
                 if print_info:
                     print(f"Player is out of mana! Player HP: {player.HP} Player mana: {player.mana} | Boss HP: {boss.HP}")
                 return (False, player.total_mana_spent)
@@ -191,15 +297,16 @@ def simulate_game(player: Player, boss: Boss, spell_list: tuple[Spell, ...], pri
     return (player_wins, player.total_mana_spent)
 
 def print_game_info(player: Player, boss: Boss, n: int):
+    print("\n-------------------------------")
     if player.HP > boss.HP:
         print(f"Player wins! ({n+1} rounds)")        
     else:
         print(f"Boss wins! ({n+1} rounds)")
 
-    print("\nRemaining HP:")
-    print(f"Player:\t{player.HP}")
-    print(f"Boss:\t{boss.HP}")
-    print(f"Mana:\t{player.total_mana_spent}")
+    print(f"Player:\t{player.HP} HP | {player.mana} mana")
+    print(f"Boss:\t{boss.HP} HP")
+    
+    print(f"Mana Spent: {player.total_mana_spent}")
 
     
 
@@ -233,37 +340,43 @@ def parse_data(data: str):
     boss_hp = int(line_list[0].split(' ')[-1])
     boss_damage = int(line_list[1].split(' ')[-1])
     return (boss_hp, boss_damage)
-    
-def part_one(data: str):
-    # player = Player(HP=50, mana=500)
-    # boss_hp, boss_damage = parse_data(data)
-    # boss = Boss(HP=boss_hp, damage=boss_damage)
 
-    win_list = []
-    for spell_list in itertools.chain(*(itertools.combinations_with_replacement([spell for spell in Spell], x) for x in range(60, 65))):
-        player = Player(HP=50, mana=500)
-        boss_hp, boss_damage = parse_data(data)
-        boss = Boss(HP=boss_hp, damage=boss_damage)
-        player_wins, mana_spent = simulate_game(player, boss, spell_list, print_info=False)
-        if player_wins:
-            win_list.append(mana_spent)
+
+def get_mana_spent_from_spell_list(spell_list: list[Spell]):
+    return sum(SPELL_PRICES[spell] for spell in spell_list)
+    
+def part_one(data: str, hard_mode: bool=False, num_outer_loops: int = 10):
+    lowest_mana_spent = 99999999999
+    for x in range(num_outer_loops):
+        for spell_list in alive_it(itertools.product([spell for spell in Spell], repeat=x), total=5**x):  # type: ignore
+            if sum(SPELL_PRICES[spell] for spell in spell_list) >= lowest_mana_spent:
+                continue
             
-    if not win_list:
-        raise ValueError("Zero wins!")
-    return min(win_list)
+            player = Player(HP=50, mana=500)
+            boss_hp, boss_damage = parse_data(data)
+            boss = Boss(HP=boss_hp, damage=boss_damage)
+            try:
+                player_wins, mana_spent = simulate_game(player, boss, spell_list, print_info=False, hard_mode=hard_mode)
+            except EffectAlreadyActive:
+                continue
+            if player_wins:
+                if mana_spent < lowest_mana_spent:
+                    lowest_mana_spent = mana_spent
+                print(f"WIN! (mana: {mana_spent:,}) (lowest so far: {lowest_mana_spent:,})")
+    return lowest_mana_spent
 
 def part_two(data: str):
-    ...
+    return part_one(data, hard_mode=True)
 
 
 
 
 def main():
-    # example_one()
-    # example_two()
-    # print()
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    example_one()
+    example_two()
+    print()
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
