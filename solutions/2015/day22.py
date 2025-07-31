@@ -1,23 +1,9 @@
-import functools
 import itertools
-import json
-import math
-import os
-import re
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from pprint import pprint
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Iterable, NamedTuple, Optional, Protocol, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
 from alive_progress import alive_it
 from rich import print
-from rich.table import Table
 
 import advent_of_code as aoc
 
@@ -32,9 +18,6 @@ class InsufficientMana(Exception):
     pass
 
 class OutOfMana(Exception):
-    pass
-
-class NoActiveSpell(Exception):
     pass
 
 class EffectAlreadyActive(Exception):
@@ -81,9 +64,6 @@ class Player:
     total_mana_spent: int = 0
 
     def apply_current_effects(self, boss: Boss, print_info: bool = True):
-        if not any([self.shield_active, self.poison_active, self.recharge_active]):
-            return
-
         if self.shield_active:
             self.defense = 7  # prompt says "increased by 7" but it's otherwise always zero
             self.shield_timer -= 1
@@ -110,15 +90,17 @@ class Player:
                 self.recharge_active = False
 
     def spend_mana(self, spell: Spell):
-        cost = SPELL_PRICES[spell]
         if self.mana < min(v for v in SPELL_PRICES.values()):
             raise OutOfMana("Player does not have enough mana to cast any spell.")
+        
+        cost = SPELL_PRICES[spell]
         if self.mana < cost:
             raise InsufficientMana(f"Player has insufficent mana ({self.mana}) to cast {spell.name} (cost: {cost})!")
+        
         self.mana -= cost
         self.total_mana_spent += cost
 
-    def cast_spell(self, spell: Spell, boss: Boss, print_info: bool = True):                  
+    def cast_spell(self, spell: Spell, boss: Boss):                  
         match spell:
             case Spell.MAGIC_MISSILE:
                 self.spend_mana(spell)
@@ -273,7 +255,7 @@ def simulate_game(player: Player,
                 return (False, 999999999)
 
             try:
-                player.cast_spell(spell, boss, print_info=print_info)
+                player.cast_spell(spell, boss)
                 spell_num += 1
                 if print_info:
                     print(f"Player casts {spell.name}! Player HP: {player.HP} Player mana: {player.mana} | Boss HP: {boss.HP}")
@@ -341,14 +323,12 @@ def parse_data(data: str):
     boss_damage = int(line_list[1].split(' ')[-1])
     return (boss_hp, boss_damage)
 
-
-def get_mana_spent_from_spell_list(spell_list: list[Spell]):
-    return sum(SPELL_PRICES[spell] for spell in spell_list)
     
-def part_one(data: str, hard_mode: bool=False, num_outer_loops: int = 10):
+def part_one(data: str, hard_mode: bool = False, num_outer_loops: int = 10):
     lowest_mana_spent = 99999999999
     for x in range(num_outer_loops):
         for spell_list in alive_it(itertools.product([spell for spell in Spell], repeat=x), total=5**x):  # type: ignore
+            # Skip if the spells cost more than the lowest total so far
             if sum(SPELL_PRICES[spell] for spell in spell_list) >= lowest_mana_spent:
                 continue
             
@@ -359,9 +339,8 @@ def part_one(data: str, hard_mode: bool=False, num_outer_loops: int = 10):
                 player_wins, mana_spent = simulate_game(player, boss, spell_list, print_info=False, hard_mode=hard_mode)
             except EffectAlreadyActive:
                 continue
-            if player_wins:
-                if mana_spent < lowest_mana_spent:
-                    lowest_mana_spent = mana_spent
+            if player_wins and mana_spent < lowest_mana_spent:
+                lowest_mana_spent = mana_spent
                 print(f"WIN! (mana: {mana_spent:,}) (lowest so far: {lowest_mana_spent:,})")
     return lowest_mana_spent
 
