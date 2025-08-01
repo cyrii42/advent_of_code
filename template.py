@@ -9,7 +9,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, NamedTuple, Optional, Protocol, Self
+from typing import Callable, NamedTuple, Optional, Protocol, Self, Literal
 
 import numpy as np
 import pandas as pd
