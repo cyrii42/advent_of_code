@@ -27,7 +27,6 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day'))
 
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
-DESCRIPTION = aoc.get_description(YEAR, DAY)
 
 def parse_data(data: str):
     line_list = data.splitlines()
