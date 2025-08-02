@@ -67,58 +67,65 @@ def part_one(data: str):
     return len(distinct_new_molecules)
 
 
+'''
+RANDOM THOUGHTS:
+    - a molecule component consists of either:
+        - "e"; or 
+        - one uppercase letter ("H"); or
+        - one uppercase letter and one lowercase letter ("Mg")
+'''
 
-def fabricate_target_molecule(r_list: list[Replacement], 
-                              start_str: str,
-                              target_str: str,
-                              count: int = 0) -> int:
+def find_components(molecule: str) -> list[str]:
+    output_list = []
 
-    if start_str == target_str:
-        return count
-    
-    for r in r_list:
-        if r.start in start_str:
-            for m in re.finditer(r.start, start_str):
-                start, end = m.span()
-                new_start_str = m.string[0:start] + r.end + m.string[end:]
-                if new_start_str == start_str:
-                    continue
-                if new_start_str == target_str:
-                    return count
-                
-                return fabricate_target_molecule(r_list, new_start_str, target_str, count+1)
+    for i, char in enumerate(molecule):
+        # if i == len(molecule) - 1:
+        #     break
 
-    return count
+        if char == 'e':
+            output_list.append(char)
+            continue
 
-            
-            
-        
-        
-    
+        if char.islower():
+            continue
 
-        
-
+        if molecule[i+1].islower():
+            output_list.append(f"{char}{molecule[i+1]}")
+        else:
+            output_list.append(char)
+    return output_list
     
 
 def part_two(data: str):
-    r_list, target_str = parse_data(data)
-    start_str = 'e'
+    ''' https://www.reddit.com/r/adventofcode/comments/3xflz8/comment/cy4cu5b/ '''
+    r_list, medicine = parse_data(data)
+    from random import shuffle
 
-    return fabricate_target_molecule(r_list, start_str, target_str)
+    target = medicine
+    num_steps = 0
 
-    
+    reps = [(r.start, r.end) for r in r_list]
+    while target != 'e':
+        tmp = target
+        for a, b in reps:
+            if b not in target:
+                continue
 
-    for r in r_list:
-        ...
+            target = target.replace(b, a, 1)
+            num_steps += 1
 
+        if tmp == target:
+            target = medicine
+            num_steps = 0
+            shuffle(reps)
+
+    return num_steps
 
 
 def main():
-    # print(f"Part One (example):  {part_one(EXAMPLE_PART_ONE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # # print()
-    print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part One (example):  {part_one(EXAMPLE_PART_ONE)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
