@@ -1,19 +1,12 @@
-import re
-import time
-import random
-import datetime as dt
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional, Literal, Self
 
-import requests
 import sqlalchemy as db
 from bs4 import BeautifulSoup
 from loguru import logger
-from rich import print
 
-from advent_of_code.constants import (AOC_SESSION, SQLITE_URL, TZ, DATA_DIR, LATEST_AOC_YEAR)
-from advent_of_code.sql_schema import PuzzleSQL, puzzles_table, answers_table
+from advent_of_code.constants import SQLITE_URL
+from advent_of_code.sql_schema import puzzles_table, answers_table
 from advent_of_code.exceptions import (ElementNotFound, AOCLoginException, PuzzleNotFound, 
                                        PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved)
 from advent_of_code.helpers import validate_year_and_day
@@ -158,7 +151,10 @@ class Puzzle:
             else:
                 return 0
 
-    def submit_answer(self, answer: str|int, level: Optional[Literal[1, 2]] = None) -> PuzzleAnswer:
+    def submit_answer(self, 
+                      answer: str|int, 
+                      level: Optional[Literal[1, 2]] = None
+                      ) -> PuzzleAnswer:
         if not isinstance(answer, str):
             answer = str(answer)
         if not level:
