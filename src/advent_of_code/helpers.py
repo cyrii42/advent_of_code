@@ -1,9 +1,14 @@
+import datetime as dt
+
 from rich import print
 
-from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR
+from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR, TZ
 from advent_of_code.logging_config import setup_logging
 
 setup_logging()
+
+def get_now_string():
+    return dt.datetime.now(tz=TZ).strftime("%Y-%m-%dT%H:%M:%S%:z")
 
 def validate_year_and_day(year: int|str, day: int|str) -> None:
     if isinstance(year, str):

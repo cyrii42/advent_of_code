@@ -1,30 +1,20 @@
-import re
-import time
-import random
 import datetime as dt
 from dataclasses import dataclass, field
-from typing import Optional, Self
+from typing import Optional
 
 import requests
 import humanize
 import sqlalchemy as db
 from bs4 import BeautifulSoup
 from loguru import logger
-from rich import print
 
 from advent_of_code.constants import AOC_SESSION, SQLITE_URL, TZ
 from advent_of_code.enums import ResponseType
-from advent_of_code.helpers import validate_year_and_day
+from advent_of_code.helpers import get_now_string
 from advent_of_code.sql_schema import answers_table
-from advent_of_code.exceptions import InvalidAnswerLevel, PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved, PuzzleAnswerNotFound
-
+from advent_of_code.exceptions import InvalidAnswerLevel, PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved
 
 SQL_ENGINE = db.create_engine(SQLITE_URL)
-
-def get_now_string():
-    return dt.datetime.now(tz=TZ).strftime("%Y-%m-%dT%H:%M:%S%:z")
-
-
 
 @dataclass
 class PuzzleAnswer:
