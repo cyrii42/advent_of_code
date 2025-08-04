@@ -155,13 +155,12 @@ class PuzzleAnswer:
                           response_type=self.response_type.name,
                           raw_response=self.raw_response
                         ))
-            result = conn.execute(stmt)
+            conn.execute(stmt)
             conn.commit()
             
         log_msg = (f"{self.year} DAY {self.day:02d} | Answer \"{self.answer}\" " + 
-                    f"({self.response_type}) written to DB with key {result.inserted_primary_key}.")
+                    f"({self.response_type}) written to DB.")
         logger.info(log_msg)
-
 
     def update_info_on_db(self) -> None:
         if not self.id:
