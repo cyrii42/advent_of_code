@@ -34,12 +34,12 @@ class Direction(IntEnum):
     SOUTH = 2
     WEST = 3
 
-
 def execute_instruction(current_position: tuple[int, int],
                         direction: Direction,
-                        num_steps: int) -> tuple[int, int]:
-    x = current_position[0]
-    y = current_position[1]
+                        num_steps: int
+                        ) -> tuple[int, int]:
+    
+    x, y = (current_position[0], current_position[1])
     
     match direction:
         case Direction.NORTH:
@@ -64,6 +64,7 @@ def part_one(data: str):
 
     location = (0, 0)
     direction = Direction.NORTH
+
     for instruction in instruction_list:
         turn = instruction[0]
         num_steps = int(instruction[1:])
@@ -72,11 +73,31 @@ def part_one(data: str):
         if turn == 'R':
             direction = Direction((direction + 1) % 4)
         location = execute_instruction(location, direction, num_steps)
-    print(location)
+
     return(abs(location[0]) + abs(location[1]))
 
 def part_two(data: str):
     instruction_list = parse_data(data)
+
+    location = (0, 0)
+    locations_visited: set[tuple[int, int]] = set()
+    direction = Direction.NORTH
+
+    for instruction in instruction_list:
+        turn = instruction[0]
+        num_steps = int(instruction[1:])
+
+        if turn == 'L':
+            direction = Direction((direction - 1) % 4)
+        if turn == 'R':
+            direction = Direction((direction + 1) % 4)
+
+        # After each step, check if we've been here before
+        for _ in range(num_steps):
+            location = execute_instruction(location, direction, 1)
+            if location in locations_visited:
+                return(abs(location[0]) + abs(location[1]))
+            locations_visited.add(location)
 
 
 
