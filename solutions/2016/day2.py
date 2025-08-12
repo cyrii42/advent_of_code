@@ -1,23 +1,7 @@
-import functools
-import itertools
-import json
-import math
-import operator
-import os
 import pathlib
-import re
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, Literal, NamedTuple, Optional, Protocol, Self
 
 import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_it
 from rich import print
-from rich.table import Table
 
 import advent_of_code as aoc
 
@@ -49,7 +33,6 @@ def execute_instruction_set_part_one(start: tuple[int, int],
             case 'L':
                 col = max(col-1, 0)
     return (row, col)
-
     
 def part_one(data: str):
     keypad = create_keypad_part_one()
@@ -65,7 +48,6 @@ def part_one(data: str):
         start = position
     return output_str
 
-
 def create_keypad_part_two() -> np.ndarray:
     return np.array([[None, None, '1', None, None], 
                      [None, '2', '3', '4', None], 
@@ -73,13 +55,11 @@ def create_keypad_part_two() -> np.ndarray:
                      [None, 'A', 'B', 'C', None],
                      [None, None, 'D', None, None]])
 
-
 def execute_instruction_set_part_two(start: tuple[int, int], 
                                      instruction_set: str,
                                      keypad: np.ndarray) -> tuple[int, int]:
     row, col = start
     
-    # print(f"START: ({row}, {col})")
     for char in instruction_set:
         match char:
             case 'U':
@@ -94,7 +74,7 @@ def execute_instruction_set_part_two(start: tuple[int, int],
             case 'L':
                 new_col = max(col-1, 0)
                 col = new_col if keypad[row, new_col] else col
-        # print(f"{char}: ({row}, {col})")
+
     return (row, col)
 
 def part_two(data: str):
