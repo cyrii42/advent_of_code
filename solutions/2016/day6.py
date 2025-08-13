@@ -15,11 +15,13 @@ def parse_data(data: str):
     line_list = data.splitlines()
     return line_list
 
-def decode_messages(msgs: list[str], reverse: bool = True) -> str:
+def decode_messages(msgs: list[str], 
+                    reverse: bool = True) -> str:
     output_str = ''
     for i in range(len(msgs[0])):
         col_i = ''.join(msg[i] for msg in msgs)
-        ltrs = sorted(col_i, key=lambda x: col_i.count(x), 
+        ltrs = sorted(col_i, 
+                      key=lambda x: col_i.count(x), 
                       reverse=reverse)
         output_str += ltrs[0]
     return output_str
