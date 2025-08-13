@@ -2,6 +2,7 @@ import pathlib
 import functools
 import itertools
 import operator
+import hashlib
 import json
 import math
 import os
