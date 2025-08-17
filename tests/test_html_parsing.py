@@ -44,77 +44,77 @@ def mock_both_parts_solved():
         raw_html = f.read()
     return BeautifulSoup(raw_html, "html.parser")
 
-def test_get_solved_statuses_from_soup_zero(mock_neither_part_solved):
+def test_get_solved_statuses_from_soup_zero(mock_neither_part_solved: BeautifulSoup):
     soup = mock_neither_part_solved
     part_1, part_2 = html.get_solved_statuses_from_soup(soup)
     assert not part_1 and not part_2
 
-def test_get_solved_statuses_from_soup_one(mock_part_1_solved):
+def test_get_solved_statuses_from_soup_one(mock_part_1_solved: BeautifulSoup):
     soup = mock_part_1_solved
     part_1, part_2 = html.get_solved_statuses_from_soup(soup)
     assert part_1 and not part_2
 
-def test_get_solved_statuses_from_soup_two(mock_both_parts_solved):
+def test_get_solved_statuses_from_soup_two(mock_both_parts_solved: BeautifulSoup):
     soup = mock_both_parts_solved
     part_1, part_2 = html.get_solved_statuses_from_soup(soup)
     assert part_1 and part_2
 
-def test_get_puzzle_title_from_soup_zero(mock_neither_part_solved):
+def test_get_puzzle_title_from_soup_zero(mock_neither_part_solved: BeautifulSoup):
     soup = mock_neither_part_solved
     title = html.get_puzzle_title_from_soup(soup)
     assert title
 
-def test_get_puzzle_title_from_soup_one(mock_part_1_solved):
+def test_get_puzzle_title_from_soup_one(mock_part_1_solved: BeautifulSoup):
     soup = mock_part_1_solved
     title = html.get_puzzle_title_from_soup(soup)
     assert title
 
-def test_get_puzzle_title_from_soup_two(mock_both_parts_solved):
+def test_get_puzzle_title_from_soup_two(mock_both_parts_solved: BeautifulSoup):
     soup = mock_both_parts_solved
     title = html.get_puzzle_title_from_soup(soup)
     assert title
 
-def test_get_puzzle_description_from_soup_zero(mock_neither_part_solved):
+def test_get_puzzle_description_from_soup_zero(mock_neither_part_solved: BeautifulSoup):
     soup = mock_neither_part_solved
     part_1, part_2 = html.get_puzzle_description_from_soup(soup)
     assert part_1 and not part_2
 
-def test_get_puzzle_description_from_soup_one(mock_part_1_solved):
+def test_get_puzzle_description_from_soup_one(mock_part_1_solved: BeautifulSoup):
     soup = mock_part_1_solved
     part_1, part_2 = html.get_puzzle_description_from_soup(soup)
     assert part_1 and part_2
 
-def test_get_puzzle_description_from_soup_two(mock_both_parts_solved):
+def test_get_puzzle_description_from_soup_two(mock_both_parts_solved: BeautifulSoup):
     soup = mock_both_parts_solved
     part_1, part_2 = html.get_puzzle_description_from_soup(soup)
     assert part_1 and part_2
 
-def test_get_puzzle_title_and_descriptions_from_soup_zero(mock_neither_part_solved):
+def test_get_puzzle_title_and_descriptions_from_soup_zero(mock_neither_part_solved: BeautifulSoup):
     soup = mock_neither_part_solved
     title, part_1, part_2 = html.get_puzzle_title_and_descriptions_from_soup(soup)
     assert title and part_1 and not part_2
 
-def test_get_puzzle_title_and_descriptions_from_soup_one(mock_part_1_solved):
+def test_get_puzzle_title_and_descriptions_from_soup_one(mock_part_1_solved: BeautifulSoup):
     soup = mock_part_1_solved
     title, part_1, part_2 = html.get_puzzle_title_and_descriptions_from_soup(soup)
     assert title and part_1 and part_2
 
-def test_get_puzzle_title_and_descriptions_from_soup_two(mock_both_parts_solved):
+def test_get_puzzle_title_and_descriptions_from_soup_two(mock_both_parts_solved: BeautifulSoup):
     soup = mock_both_parts_solved
     title, part_1, part_2 = html.get_puzzle_title_and_descriptions_from_soup(soup)
     assert title and part_1 and part_2
 
-def test_get_answers_from_soup_zero(mock_neither_part_solved):
+def test_get_answers_from_soup_zero(mock_neither_part_solved: BeautifulSoup):
     soup = mock_neither_part_solved
     part_1, part_2 = html.get_answers_from_soup(soup)
     assert not part_1 and not part_2
 
-def test_get_answers_from_soup_one(mock_part_1_solved):
+def test_get_answers_from_soup_one(mock_part_1_solved: BeautifulSoup):
     soup = mock_part_1_solved
     part_1, part_2 = html.get_answers_from_soup(soup)
     assert part_1 and not part_2
 
-def test_get_answers_from_soup_two(mock_both_parts_solved):
+def test_get_answers_from_soup_two(mock_both_parts_solved: BeautifulSoup):
     soup = mock_both_parts_solved
     part_1, part_2 = html.get_answers_from_soup(soup)
     assert part_1 and part_2
@@ -140,7 +140,7 @@ def mock_no_example():
         raw_html = f.read()
     return BeautifulSoup(raw_html, "html.parser")
 
-def test_get_example_from_soup_no_example(mock_no_example):
+def test_get_example_from_soup_no_example(mock_no_example: BeautifulSoup):
     soup = mock_no_example
     with pytest.raises(exc.ElementNotFound):
         html.get_example_from_soup(soup)
