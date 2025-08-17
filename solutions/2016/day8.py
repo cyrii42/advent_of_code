@@ -23,7 +23,7 @@ class Grid:
             inst = inst.removeprefix('rect ')
             a, b = inst.split('x')
             self.rect(int(a), int(b))
-        elif inst.startswith ('rotate row'):
+        elif inst.startswith('rotate row'):
             inst = inst.removeprefix('rotate row y=')
             a, b = inst.split('by')
             self.shift_right(int(a), int(b))
