@@ -67,8 +67,8 @@ def part_one(data: pathlib.Path):
 
 def part_two(data: pathlib.Path):
     room_list = parse_data(data)
-    return [room.id for room in room_list 
-            if room.real_name == 'northpole object storage'][0]
+    return next(room.id for room in room_list 
+                if room.real_name == 'northpole object storage')
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
