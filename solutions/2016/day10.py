@@ -1,24 +1,10 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
 import pathlib
-import re
-from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, Literal, NamedTuple, Optional, Protocol, Self
+from enum import Enum
+import operator
+from typing import NamedTuple, Optional, Callable
 
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_it
 from rich import print
-from rich.table import Table
 
 import advent_of_code as aoc
 
@@ -33,16 +19,13 @@ class BotRecipientType(Enum):
     BOT = 'bot'
     BIN = 'output'
 
+class ChipsAreEqual(Exception):
+    pass
+
 class TooManyChips(Exception):
     pass
 
-class BinAlreadyExists(Exception):
-    pass
-
 class TooManyInstructions(Exception):
-    pass
-
-class BotNotYetCreated(Exception):
     pass
 
 class BotNotReady(Exception):
@@ -57,12 +40,22 @@ class BotInstruction(NamedTuple):
     low_recipient_type: BotRecipientType
     low_recipient_id: int
     high_recipient_type: BotRecipientType
-    high_receipient_id: int
+    high_recipient_id: int
+
+class Comparison(NamedTuple):
+    bot_id: int
+    low_chip_value: int
+    high_chip_value: int
 
 @dataclass
 class OutputBin:
     id: int
-    chip: Optional[int] = None
+    chip: int
+
+    def add_chip(self, chip_value: int) -> None:
+        if self.chip:
+            raise TooManyChips(f"Output Bin #{self.id} is already full.")
+        self.chip = chip_value 
 
 @dataclass
 class Bot:
@@ -75,20 +68,58 @@ class Bot:
     def ready(self) -> bool:
         return all(x for x in [self.chip_1, self.chip_2, self.inst])
 
+    def add_chip(self, chip_value: int) -> None:
+        if self.chip_1 and self.chip_2:
+            raise TooManyChips(f"Bot #{self.id} already has two chips.") 
+        if self.chip_1:
+            self.chip_2 = chip_value
+        else:
+            self.chip_1 = chip_value
+
+    def extract_high_chip(self) -> int:
+        return self.extract_chip(func=operator.gt)
+
+    def extract_low_chip(self) -> int:
+        return self.extract_chip(func=operator.lt)
+
+    def extract_chip(self, func: Callable) -> int:
+        if not self.chip_1 and not self.chip_2:
+            raise BotNotReady(f"Bot #{self.id} has no chips.")
+
+        if self.chip_1 and self.chip_2:
+            if self.chip_1 == self.chip_2:
+                raise ChipsAreEqual(f"Bot #{self.id} has two chips of equal value.")
+            if func(self.chip_1, self.chip_2):
+                output = self.chip_1
+                self.chip_1 = None
+                return output
+            else:
+                output = self.chip_2
+                self.chip_2 = None
+                return output
+        
+        if self.chip_2 and not self.chip_1:
+            output = self.chip_2
+            self.chip_2 = None
+            return output
+        
+        if self.chip_1 and not self.chip_2:
+            output = self.chip_1
+            self.chip_1 = None
+            return output
+        
+        return -1
+
 @dataclass
 class Factory:
     bots: list[Bot] = field(default_factory=list)
     output_bins: list[OutputBin] = field(default_factory=list)
+    comparisons: list[Comparison] = field(default_factory=list)
 
     def make_distribution(self, dist: Distribution):
         try:
             bot = self.get_bot_by_id(dist.bot_id)
-            if bot.chip_1 and bot.chip_2:
-                raise TooManyChips(f"Bot #{dist.bot_id} already has two chips.")
-            if bot.chip_1:
-                bot.chip_2 = dist.value
-            else:
-                bot.chip_1 = dist.value
+            bot.add_chip(dist.value)
                 
         except StopIteration:
             bot = Bot(id=dist.bot_id, chip_1=dist.value)
@@ -96,6 +127,9 @@ class Factory:
 
     def get_bot_by_id(self, bot_id: int) -> Bot:
         return next(bot for bot in self.bots if bot.id == bot_id)
+
+    def get_bin_by_id(self, bin_id: int) -> OutputBin:
+        return next(bin for bin in self.output_bins if bin.id == bin_id)
 
     def add_instruction(self, inst: BotInstruction):
         try:
@@ -107,61 +141,42 @@ class Factory:
         except StopIteration:
             bot = Bot(id=inst.bot_id, inst=inst)
             self.bots.append(bot)
-            
-    def execute_all_instruction(self):
+
+    def execute_all_instructions(self):
         for bot in self.bots:
-            if not bot.inst or not bot.chip_1 or not bot.chip_2:
-                raise BotNotReady(f"Bot #{bot.id} is not ready to execute instructions.")
+            self.execute_bot_instruction(bot)
+            
+    def execute_bot_instruction(self, bot: Bot):
+        if not bot.chip_1 or not bot.chip_2 or not bot.inst:
+            return 
+        
+        low_chip_value = bot.extract_low_chip()
+        match bot.inst.low_recipient_type:
+            case BotRecipientType.BOT:
+                new_bot = self.create_bot_or_add_chip(bot.inst.low_recipient_id, 
+                                                  low_chip_value)
+                if new_bot.ready:
+                    self.execute_bot_instruction(new_bot)
+                
+            case BotRecipientType.BIN:
+                self.output_bins.append(OutputBin(bot.inst.low_recipient_id, 
+                                                    low_chip_value))
+        
+        high_chip_value = bot.extract_high_chip()
+        match bot.inst.high_recipient_type:
+            case BotRecipientType.BOT:
+                new_bot = self.create_bot_or_add_chip(bot.inst.high_recipient_id, 
+                                                      high_chip_value)
+                if new_bot.ready:
+                    self.execute_bot_instruction(new_bot)
+                
+            case BotRecipientType.BIN:
+                self.output_bins.append(OutputBin(bot.inst.high_recipient_id, 
+                                                    high_chip_value))
+                
+        self.comparisons.append(Comparison(bot.id, low_chip_value, high_chip_value))
 
-            low_chip = bot.chip_1 if not bot.chip_2 else min(bot.chip_1, bot.chip_2)
-            match bot.inst.low_recipient_type:
-                case BotRecipientType.BOT:
-                    output_bot = self.get_bot_by_id(bot.inst.low_recipient_id)
-                    # if output_bot.chip_1 and output_bot.chip_2:
-                    #     raise TooManyChips(f"Bot #{output_bot.id} already has two chips.")
-                    if output_bot.chip_1:
-                        output_bot.chip_2 = low_chip
-                    else:
-                        output_bot.chip_1 = low_chip
-
-                    if bot.chip_1 == low_chip:
-                        bot.chip_1 = None
-                    else:
-                        bot.chip_2 = None
-                        
-                case BotRecipientType.BIN:
-                    if len([bin for bin in self.output_bins if bin.id == bot.inst.low_recipient_id]) > 0:
-                        raise BinAlreadyExists(f"Bin #{bot.inst.low_recipient_id} already exists.")
-                    output_bin = OutputBin(id=bot.inst.low_recipient_id, chip=low_chip)
-                    self.output_bins.append(output_bin)
-
-            high_chip = bot.chip_1 if not bot.chip_2 else max(bot.chip_1, bot.chip_2)
-            match bot.inst.high_recipient_type:
-                case BotRecipientType.BOT:
-                    output_bot = self.get_bot_by_id(bot.inst.low_recipient_id)
-                    # if output_bot.chip_1 and output_bot.chip_2:
-                    #     raise TooManyChips(f"Bot #{output_bot.id} already has two chips.")
-                    if output_bot.chip_1:
-                        output_bot.chip_2 = high_chip
-                    else:
-                        output_bot.chip_1 = high_chip
-                        
-                    if bot.chip_1 == high_chip:
-                        bot.chip_1 = None
-                    else:
-                        bot.chip_2 = None
-                        
-                case BotRecipientType.BIN:
-                    if len([bin for bin in self.output_bins if bin.id == bot.inst.low_recipient_id]) > 0:
-                        raise BinAlreadyExists(f"Bin #{bot.inst.low_recipient_id} already exists.")
-                    output_bin = OutputBin(id=bot.inst.low_recipient_id, chip=high_chip)
-                    self.output_bins.append(output_bin)
-
-            print(self)
-                    
-
-
-    def create_bot_or_add_chip(self, bot_id: int, value: int) -> None:
+    def create_bot_or_add_chip(self, bot_id: int, value: int) -> Bot:
         try:
             bot = self.get_bot_by_id(bot_id)
             if bot.chip_1 and bot.chip_2:
@@ -173,16 +188,15 @@ class Factory:
         except StopIteration:
             bot = Bot(id=bot_id, chip_1=value)
             self.bots.append(bot)
+        return bot
             
     def parse_data(self, data: str) -> None:
         line_list = data.splitlines()
 
         for line in line_list:
             if line.startswith('value'):
-                nums = [char for char in line if char.isdigit()]
-                value = int(nums[0])
-                bot_id= int(nums[1])
-                self.create_bot_or_add_chip(bot_id, value)
+                _, value, _, _, _, bot_id = line.split(' ')
+                self.create_bot_or_add_chip(int(bot_id), int(value))
             else:
                 _, bot_id, _, _, _, low_type_str, low_val, _, _, _, high_type_str, high_val = line.split(' ')
                 low_type = BotRecipientType(low_type_str)
@@ -190,47 +204,39 @@ class Factory:
                 inst = BotInstruction(int(bot_id), low_type, int(low_val), high_type, int(high_val))
                 self.add_instruction(inst)
 
-            
+    def get_part_one_answer(self, high_val: int, low_val: int) -> int:
+        comp = next(comp for comp in self.comparisons
+                    if comp.high_chip_value == high_val
+                    and comp.low_chip_value == low_val)
+        return comp.bot_id
 
-            
-        
+    def get_part_two_answer(self) -> int:
+        bin_0 = self.get_bin_by_id(0)
+        bin_1 = self.get_bin_by_id(1)
+        bin_2 = self.get_bin_by_id(2)
+        return bin_0.chip * bin_1.chip * bin_2.chip
 
-# def parse_data(data: str):
-#     line_list = data.splitlines()
-
-#     output_list = []
-#     for line in line_list:
-#         if line.startswith('value'):
-#             nums = [char for char in line if char.isdigit()]
-#             value = int(nums[0])
-#             bot_id= int(nums[1])
-#             bot = Bot()
-#         else:
-#             _, bot_id, _, _, _, low_type_str, low_val, _, _, _, high_type_str, high_val = line.split(' ')
-#             low_type = Bot if low_type_str == 'bot' else OutputBin
-#             high_type = Bot if high_type_str == 'bot' else OutputBin
-#             inst = BotInstruction(int(bot_id), low_type, int(low_val), high_type, int(high_val))
-#             output_list.append(inst)
-            
-    
 def part_one(data: str):
     factory = Factory()
     factory.parse_data(data)
-    print(factory)
-    factory.execute_all_instruction()
-    print(factory)
+    factory.execute_all_instructions()
+    if data == EXAMPLE:
+        return factory.get_part_one_answer(5, 2)
+    else:
+        return factory.get_part_one_answer(61, 17)
 
 def part_two(data: str):
-    __ = parse_data(data)
+    factory = Factory()
+    factory.parse_data(data)
+    factory.execute_all_instructions()
+    return factory.get_part_two_answer()
 
 
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print()
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
