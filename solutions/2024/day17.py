@@ -18,8 +18,8 @@ from rich import print
 
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day17_example.txt'
-INPUT = DATA_DIR / 'day17_input.txt'
+EXAMPLE = DATA_DIR / '2024_day17_example.txt'
+INPUT = DATA_DIR / '2024_day17_input.txt'
 
 class NoValidFunction(Exception):
     pass
@@ -304,13 +304,13 @@ def part_two(filename: Path):
 
 
 def main():
-    # print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     # print()
-    # print(f"Part Two (example):  {part_two_example()}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (example):  {part_two_example()}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
+    # random_tests()
 
 def get_int_from_list(int_list: list[int]) -> int:
     copied_list = deepcopy(int_list)

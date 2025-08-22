@@ -16,8 +16,8 @@ import numpy as np
 from alive_progress import alive_it
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day14_example.txt'
-INPUT = DATA_DIR / 'day14_input.txt'
+EXAMPLE = DATA_DIR / '2024_day14_example.txt'
+INPUT = DATA_DIR / '2024_day14_input.txt'
 
 SPACE_WIDTH = 101
 SPACE_HEIGHT = 103

@@ -3,8 +3,8 @@
 from pathlib import Path
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day5_example.txt'
-INPUT = DATA_DIR / 'day5_input.txt'
+EXAMPLE = DATA_DIR / '2024_day5_example.txt'
+INPUT = DATA_DIR / '2024_day5_input.txt'
                 
 def get_ordering_rules(filename: Path) -> list[tuple[int, int]]:
     with open(filename, 'r') as f:

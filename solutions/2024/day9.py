@@ -14,8 +14,8 @@ import numpy as np
 from alive_progress import alive_it
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day9_example.txt'
-INPUT = DATA_DIR / 'day9_input.txt'
+EXAMPLE = DATA_DIR / '2024_day9_example.txt'
+INPUT = DATA_DIR / '2024_day9_input.txt'
 
 
 def ingest_data(filename: Path) -> str:

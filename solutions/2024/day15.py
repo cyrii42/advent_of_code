@@ -16,8 +16,8 @@ import numpy as np
 from alive_progress import alive_it
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day15_example.txt'
-INPUT = DATA_DIR / 'day15_input.txt'
+EXAMPLE = DATA_DIR / '2024_day15_example.txt'
+INPUT = DATA_DIR / '2024_day15_input.txt'
 
 class Point(NamedTuple):
     row: int

@@ -18,8 +18,8 @@ from rich import print
 
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day18_example.txt'
-INPUT = DATA_DIR / 'day18_input.txt'
+EXAMPLE = DATA_DIR / '2024_day18_example.txt'
+INPUT = DATA_DIR / '2024_day18_input.txt'
 
 class Point(NamedTuple):
     x: int

@@ -4,9 +4,9 @@ import re
 from pathlib import Path
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE_PART_ONE = DATA_DIR / 'day3_example.txt'
-EXAMPLE_PART_TWO = DATA_DIR / 'day3_part2_example.txt'
-INPUT = DATA_DIR / 'day3_input.txt'
+EXAMPLE_PART_ONE = DATA_DIR / '2024_day3_example.txt'
+EXAMPLE_PART_TWO = DATA_DIR / '2024_day3_part2_example.txt'
+INPUT = DATA_DIR / '2024_day3_input.txt'
 
 REGEX_PART_ONE = r"mul\([0-9]{1,3}\,[0-9]{1,3}\)"
 

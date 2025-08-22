@@ -3,8 +3,8 @@
 from pathlib import Path
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day2_example.txt'
-INPUT = DATA_DIR / 'day2_input.txt'
+EXAMPLE = DATA_DIR / '2024_day2_example.txt'
+INPUT = DATA_DIR / '2024_day2_input.txt'
 
 def ingest_data(filename: Path) -> list[list[int]]:
     with open(filename, 'r') as f:

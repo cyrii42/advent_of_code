@@ -14,8 +14,8 @@ import numpy as np
 from alive_progress import alive_it
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day10_example.txt'
-INPUT = DATA_DIR / 'day10_input.txt'
+EXAMPLE = DATA_DIR / '2024_day10_example.txt'
+INPUT = DATA_DIR / '2024_day10_input.txt'
 FULL_TRAIL_SET = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 class Direction(Enum):

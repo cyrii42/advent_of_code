@@ -8,10 +8,11 @@ from typing import NamedTuple, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 from alive_progress import alive_it
+
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day6_example.txt'
-INPUT = DATA_DIR / 'day6_input.txt'
+EXAMPLE = DATA_DIR / '2024_day6_example.txt'
+INPUT = DATA_DIR / '2024_day6_input.txt'
 
 class Point(NamedTuple):
     col: int
@@ -98,7 +99,7 @@ class Guard():
     def increment_position_counter(self, next_point: Point) -> None:
         if (next_point, self.direction) in self.positions_directions_visited:
             raise InfiniteLoop
-        if not next_point in self.positions_visited:
+        if next_point not in self.positions_visited:
             self.total_positions += 1
             self.positions_visited.add(next_point)
             self.positions_directions_visited.add((next_point, self.direction))      

@@ -47,7 +47,7 @@ def calculate_similarity_score(sorted_num_lists: tuple[list[int], list[int]]) ->
     
 
 def part_two():
-    pairs = ingest_data(DATA_DIR.joinpath('day1_input.txt'))
+    pairs = ingest_data(DATA_DIR.joinpath('2024_day1_input.txt'))
     sorted_num_lists = sort_pairs(pairs)
     answer = calculate_similarity_score(sorted_num_lists)
     print(answer)

@@ -6,8 +6,8 @@ import numpy as np
 from pathlib import Path
 from advent_of_code.constants import DATA_DIR
 
-EXAMPLE = DATA_DIR / 'day4_example.txt'
-INPUT = DATA_DIR / 'day4_input.txt'
+EXAMPLE = DATA_DIR / '2024_day4_example.txt'
+INPUT = DATA_DIR / '2024_day4_input.txt'
 
 PART_2_SQUARE_HEIGHT = 3
 PART_2_SQUARE_WIDTH = 3
