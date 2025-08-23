@@ -24,7 +24,7 @@ import advent_of_code as aoc
 
 CURRENT_FILE = pathlib.Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
-DAY = int(CURRENT_FILE.stem.removeprefix('day'))
+DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
