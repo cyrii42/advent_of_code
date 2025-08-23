@@ -7,6 +7,7 @@ import json
 import math
 import os
 import re
+from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum
