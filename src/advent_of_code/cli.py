@@ -6,6 +6,7 @@ from rich.table import Table
 from bs4 import BeautifulSoup
 
 from advent_of_code.constants import LATEST_AOC_YEAR, SOLUTIONS_DIR
+from advent_of_code.local import write_code_template
 from advent_of_code.models import Puzzle
 from advent_of_code.exceptions import (PuzzleNotFound, PuzzleAnswerAlreadySubmitted, 
                                        PuzzleLevelAlreadySolved, AOCLoginException, ElementNotFound)
@@ -50,6 +51,11 @@ def description(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEA
     if puzzle.part_2_description:
         print('--- Part Two ---\n')
         print(puzzle.part_2_description)
+
+@app.command(help='Make a new code file from template')
+def template(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
+             day: Annotated[int, typer.Argument(min=1, max=25)]):
+    write_code_template(year, day)
  
 @app.command(help='Print the Advent of Code URL')
 def url(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 

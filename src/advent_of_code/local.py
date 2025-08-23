@@ -4,26 +4,33 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from rich.table import Table
 
-from advent_of_code.constants import SOLUTIONS_DIR, CODE_TEMPLATE, LATEST_AOC_YEAR, DATA_DIR
-from advent_of_code.models import Puzzle
+from advent_of_code.constants import CODE_TEMPLATE, DATA_DIR, LATEST_AOC_YEAR, SOLUTIONS_DIR
 from advent_of_code.exceptions import ElementNotFound
 from advent_of_code.helpers import validate_year_and_day
-from advent_of_code.html_parsing import (get_example_from_soup, 
-                                         get_puzzle_description_from_soup, 
-                                         get_puzzle_title_from_soup, 
-                                         get_solved_statuses_from_soup)
+from advent_of_code.html_parsing import (
+    get_example_from_soup,
+    get_puzzle_description_from_soup,
+    get_puzzle_title_from_soup,
+    get_solved_statuses_from_soup,
+)
+from advent_of_code.models import Puzzle
+
 
 def write_code_template(year: int, day: int, overwrite: bool = False) -> None:
     solution_dir = Path(SOLUTIONS_DIR / str(year))
 
-    if solution_dir.exists() and not overwrite:
-        return None
     if not solution_dir.exists():
         solution_dir.mkdir()
+
+    file = solution_dir / f"day{day:02d}.py"
+    print(file)
+    if file.exists() and not overwrite:
+        print(f"File {file} already exists.")
+        return None
         
     with open(CODE_TEMPLATE, 'r') as f:
         template_text = f.read()
-    with open(solution_dir / f"day{day}.py", 'w') as f:
+    with open(solution_dir / f"day{day:02d}.py", 'w') as f:
         f.write(template_text.removesuffix('\n'))
 
 
