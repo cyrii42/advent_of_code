@@ -97,6 +97,27 @@ class Maze:
                     visited.add(neighbor)
         return 0
 
+    def get_part_two_answer(self):
+        start = Node(1, 1)
+        count = 0
+        queue = deque([(start, [start])])
+
+        visited = set()
+        visited.add(start)
+
+        while queue:
+            node, path = queue.popleft()
+            if count > 50:
+                return len(path)
+            for neighbor in self.graph[node]:
+                if neighbor not in visited:
+                    count += 1
+                    new_path = path + [neighbor]
+                    queue.append((neighbor, new_path))
+                    visited.add(neighbor)
+        return 0
+                    
+
 def parse_data(data: str) -> Maze:
     fav_num = int(data)
     if data == '10':
@@ -119,14 +140,15 @@ def part_one(data: str):
     
 
 def part_two(data: str):
-    ...
+    maze = parse_data(data)
+    return maze.get_part_two_answer()
 
 
 def main():
     print(f"Part One (example):  {part_one('10')}")
     print(f"Part One (input):  {part_one(INPUT)}")
     # print()
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
