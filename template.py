@@ -1,4 +1,3 @@
-import pathlib
 import functools
 import itertools
 import operator
@@ -7,6 +6,7 @@ import json
 import math
 import os
 import re
+from pathlib import Path
 from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -17,13 +17,12 @@ from typing import Callable, NamedTuple, Optional, Protocol, Self, Literal, Gene
 import numpy as np
 import pandas as pd
 import polars as pl
-from alive_progress import alive_it
-from rich.table import Table
+from alive_progress import alive_it, alive_bar
 from rich import print
 
 import advent_of_code as aoc
 
-CURRENT_FILE = pathlib.Path(__file__)
+CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
