@@ -36,6 +36,9 @@ class InsufficientDiskSpace(Exception):
 class NodesNotAdjcacent(Exception):
     pass
 
+class NoFreeNeighbors(Exception):
+    pass
+
 DIRECTIONS = {
     'UP':    (1, 0),
     'RIGHT': (0, 1),
@@ -114,10 +117,10 @@ class Grid:
                 for loc in self.graph[node.coord]]
 
     def get_adj_nodes_with_free_space(self, 
-                                      node: Node,
-                                      space: int) -> list[Node]:
-        potential_nodes = self.get_adjacent_nodes(node)
-        return [node for node in potential_nodes if node.avail >= space]
+                                      start_node: Node) -> list[Node]:
+        potential_nodes = self.get_adjacent_nodes(start_node)
+        return [node for node in potential_nodes 
+                if node.avail >= start_node.used]
 
     def move_data(self, node1: Node, node2: Node) -> None:
         if not self.check_adjacency(node1, node2):
@@ -126,6 +129,25 @@ class Grid:
             raise InsufficientDiskSpace
         data = node1.extract_data()
         node2.add_data(data)
+ 
+    def move_data_from_node(self, node: Node) -> Node:
+        avail_neighbors = self.get_adj_nodes_with_free_space(node)
+        if not avail_neighbors:
+            raise NoFreeNeighbors
+        else:
+            self.move_data(node, avail_neighbors[0])
+            return node
+
+    def find_closest_empty_node_to_node(self, node: Node) -> Node:
+        ...
+
+    def allocate_free_space_adj_to_node(self, node: Node) -> None:
+        if self.get_adj_nodes_with_free_space(node):
+            return
+
+        ...
+
+        
 
     def solve_part_one(self) -> int:
         total = 0
@@ -151,13 +173,21 @@ class Grid:
             node, path = queue.popleft()
             if node == end:
                 return len(path) - 1
-            for neighbor_coord in self.graph[node.coord]:
-                if neighbor_coord not in visited:
-                    neighbor = self.get_node_by_location(neighbor_coord)
-                    new_path = path + [neighbor]
-                    queue.append((neighbor, new_path))
-                    visited.add(neighbor.coord)
-        return 0
+            avail_neighbors = self.get_adj_nodes_with_free_space(node)
+            if not avail_neighbors:
+                print(f"dead end at {node}")
+                print(self.get_adjacent_nodes(node))
+                try:
+                    node = self.move_data_from_node(node)
+                except NoFreeNeighbors:
+                    raise
+            else:
+                for neighbor in avail_neighbors:
+                    if neighbor.coord not in visited:
+                        new_path = path + [neighbor]
+                        queue.append((neighbor, new_path))
+                        visited.add(neighbor.coord)
+        return -1
 
 def parse_data(data: str) -> Grid:
     line_list = data.splitlines()
