@@ -1,5 +1,7 @@
 import bisect
+import math
 import pathlib
+from collections import deque
 
 from alive_progress import alive_bar
 from rich import print
@@ -11,6 +13,21 @@ YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
 INPUT = aoc.get_input(YEAR, DAY)
+
+def run_white_elephant(n: int, k: int = 2) -> int:
+    ''' https://en.wikipedia.org/wiki/Josephus_problem#k_=_2 
+
+    Move the most-significant digit to the least-significant spot. '''
+
+    # n_str = bin(n)
+    # most_sig = n_str[2]
+    # n_str_without_most_sig = n_str[3:]
+    # new_str = f"0b{n_str_without_most_sig}{most_sig}"
+    # return int(new_str, 2)
+
+    return int(f"0b{bin(n)[3:]}{bin(n)[2]}", 2)
+
+    
 
 def run_white_elephant_part_one(num_elves: int, print_info: bool = False) -> int:
     d = {n: 1 for n in range(num_elves)}
@@ -29,7 +46,7 @@ def run_white_elephant_part_one(num_elves: int, print_info: bool = False) -> int
         d[elf] += d[next_elf]
         if print_info:
             print(f"Elf #{elf+1} takes Elf #{next_elf+1}'s {d[next_elf]} present(s)",
-                  f"(Elf #{elf+1} now has {d[elf]})")
+                f"(Elf #{elf+1} now has {d[elf]})")
         d[next_elf] = 0
 
         
@@ -59,55 +76,74 @@ def run_white_elephant_part_two(num_elves: int, print_info: bool = False) -> int
     d = {n: 1 for n in range(num_elves)}
     elf = -1
 
-    with alive_bar() as bar:
-        while True:
+    while True:
+        elf = ((elf + 1) % num_elves)
+        while not d.get(elf):
             elf = ((elf + 1) % num_elves)
-            while not d.get(elf):
-                elf = ((elf + 1) % num_elves)
+        
+        opposite_elf = get_elf_across_circle(elf, d)
             
-            opposite_elf = get_elf_across_circle(elf, d)
-                
-            d[elf] += d[opposite_elf]
-            if print_info:
-                print(f"Elf #{elf+1} takes Elf #{opposite_elf+1}'s {d[opposite_elf]} present(s)",
-                    f"(Elf #{elf+1} now has {d[elf]})")
-            del d[opposite_elf]
+        d[elf] += d[opposite_elf]
+        if print_info:
+            print(f"Elf #{elf+1} takes Elf #{opposite_elf+1}'s {d[opposite_elf]} present(s)",
+                f"(Elf #{elf+1} now has {d[elf]})")
+        del d[opposite_elf]
 
-            if d[elf] >= num_elves:
-                return elf+1
-            
-            bar()
+        if d[elf] >= num_elves:
+            return elf+1
     
 
-def test_part_one():
-    print(f"TEST (5): {part_one('5') == 3} ({part_one('5', print_info=True)})")
+def solve_part_two_reddit(num_elves: int):
+    ''' https://www.reddit.com/r/adventofcode/comments/5j4lp1/comment/dbdf9mn/ '''
+    left = deque()
+    right = deque()
+    for i in range(1, num_elves+1):
+        if i < (num_elves // 2) + 1:
+            left.append(i)
+        else:
+            right.appendleft(i)
+
+    while left and right:
+        if len(left) > len(right):
+            left.pop()
+        else:
+            right.pop()
+
+        # rotate
+        right.appendleft(left.popleft())
+        left.append(right.pop())
+    return left[0] or right[0]
+
+def test_part_one(print_info: bool = True):
+    print(f"TEST (5): {part_one('5') == 3} ({part_one('5', print_info=print_info)})")
 
 def part_one(data: str, print_info: bool = False):
     num_elves = int(data)
-    return run_white_elephant_part_one(num_elves, print_info=print_info)
+    return run_white_elephant(num_elves)
+    # return run_white_elephant_part_one(num_elves, print_info=print_info)
     
-def test_part_two():
-    print(f"TEST (5): {part_two('5') == 2} ({part_two('5', print_info=True)})")
+def test_part_two(print_info: bool = True):
+    print(f"TEST (5): {part_two('5') == 2} ({part_two('5', print_info=print_info)})")
 
 def part_two(data: str, print_info: bool = False):
     num_elves = int(data)
-    return run_white_elephant_part_two(num_elves, print_info=print_info)
+    return solve_part_two_reddit(num_elves)
 
 
 
 def main():
-    # test_part_one()
-    # print(f"Part One (input):  {part_one(INPUT, print_info=False)}")
-    # test_part_two()
+    test_part_one(print_info=False)
+    print(f"Part One (input):  {part_one(INPUT, print_info=False)}")
+    test_part_two(print_info=False)
     print(f"Part Two (input):  {part_two(INPUT, print_info=False)}")
+
+    
 
     random_tests()
 
 def random_tests():
-    asdf = [x for x in range(50)]
-    print(bisect.bisect_left(asdf, 20))
-    print(asdf.index(20))
+    ...
 
-       
+
 if __name__ == '__main__':
     main()
