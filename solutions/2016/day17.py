@@ -32,8 +32,8 @@ EXAMPLE_TESTS_PART_ONE = [
 ]
 EXAMPLE_TESTS_PART_TWO = [
     ('ihgpwlah', 370),
-    # ('kglvqrro', 492),
-    # ('ulqzkmiv', 830)
+    ('kglvqrro', 492),
+    ('ulqzkmiv', 830)
 ]
 INPUT = aoc.get_input(YEAR, DAY)
 
@@ -190,9 +190,9 @@ def part_two(data: str):
 
 
 def main():
-    # part_one_tests()
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    part_two_tests()
+    part_one_tests()
+    print(f"Part One (input):  {part_one(INPUT)}")
+    # part_two_tests()
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
