@@ -213,10 +213,10 @@ class Grid:
                 print(f"Left of goal node: {self.left_of_goal_node}")
                 print()
             
-        # move the empty node to (0, 0) and move the goal data there
-        zero_one = self.get_node_by_location((0, 0))
+        # move the empty node to (0, 0)
+        origin = self.get_node_by_location((0, 0))
         path = self.find_shortest_path_between_nodes(self.empty_node, 
-                                                     zero_one)
+                                                     origin)
         total_moves += self.move_free_space_along_path(path)
         
         # move the goal data to the empty node
