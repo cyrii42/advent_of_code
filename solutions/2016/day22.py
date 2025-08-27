@@ -1,23 +1,9 @@
-import functools
-import hashlib
 import itertools
-import json
 import math
-import operator
-import os
-import re
 from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, Literal, NamedTuple, Optional, Protocol, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -36,7 +22,10 @@ class InsufficientDiskSpace(Exception):
 class NodesNotAdjcacent(Exception):
     pass
 
-class NoFreeNeighbors(Exception):
+class NoEmptyNodes(Exception):
+    pass
+
+class NodeNotEmpty(Exception):
     pass
 
 DIRECTIONS = {
@@ -54,6 +43,7 @@ class Node:
     used: int = field(repr=True)
     avail: int = field(repr=True)
     used_pct: int = field(repr=True)
+    has_goal_data: bool = False
 
     @property
     def coord(self) -> tuple[int, int]:
@@ -73,7 +63,6 @@ class Node:
         self.used_pct = 0
         return output
         
-        
 @dataclass
 class Grid:
     nodes: list[Node]
@@ -81,6 +70,7 @@ class Grid:
 
     def __post_init__(self):
         self.graph = self.create_graph()
+        self.get_node_by_location((self.max_x, 0)).has_goal_data = True
 
     @property
     def max_x(self) -> int:
@@ -91,8 +81,22 @@ class Grid:
         return max(node.y for node in self.nodes)
 
     @property
-    def empty_nodes(self) -> list[Node]:
-        return [node for node in self.nodes if node.used == 0]
+    def goal_node(self) -> Node:
+        return next(node for node in self.nodes if node.has_goal_data)
+
+    @property
+    def left_of_goal_node(self) -> Node:
+        return next(node for node in self.nodes 
+                    if node.x == self.goal_node.x - 1
+                    and node.y == self.goal_node.y)
+
+    @property
+    def empty_node(self) -> Node:
+        return [node for node in self.nodes if node.used == 0][0]
+
+    @property
+    def size_of_empty_node(self) -> int:
+        return self.empty_node.size
 
     def create_graph(self) -> dict[tuple[int, int], list[tuple[int, int]]]:
         output = {}
@@ -116,12 +120,6 @@ class Grid:
         return [self.get_node_by_location(loc)
                 for loc in self.graph[node.coord]]
 
-    def get_adj_nodes_with_free_space(self, 
-                                      start_node: Node) -> list[Node]:
-        potential_nodes = self.get_adjacent_nodes(start_node)
-        return [node for node in potential_nodes 
-                if node.avail >= start_node.used]
-
     def move_data(self, node1: Node, node2: Node) -> None:
         if not self.check_adjacency(node1, node2):
             raise NodesNotAdjcacent
@@ -129,41 +127,27 @@ class Grid:
             raise InsufficientDiskSpace
         data = node1.extract_data()
         node2.add_data(data)
- 
-    def move_data_from_node(self, node: Node) -> Node:
-        avail_neighbors = self.get_adj_nodes_with_free_space(node)
-        if not avail_neighbors:
-            raise NoFreeNeighbors
-        else:
-            self.move_data(node, avail_neighbors[0])
-            return node
+        if node1.has_goal_data:
+            node1.has_goal_data = False
+            node2.has_goal_data = True
 
-    def find_closest_empty_node_to_node(self, node: Node) -> Node:
-        ...
+    def move_free_space_along_path(self, path: list[Node]) -> int:
+        ''' Returns the number of moves '''
+        if path[0].used != 0:
+            raise NodeNotEmpty
 
-    def allocate_free_space_adj_to_node(self, node: Node) -> None:
-        if self.get_adj_nodes_with_free_space(node):
-            return
-
-        ...
-
+        moves = 0
+        for i in range(len(path)):
+            if i == len(path) - 1:
+                break
+            self.move_data(path[i+1], path[i])
+            moves += 1
+        assert path[-1].used == 0
+        return moves
         
-
-    def solve_part_one(self) -> int:
-        total = 0
-        for a, b in itertools.permutations(self.nodes, 2):
-            if a.used > 0 and a.used <= b.avail:
-                total += 1
-        return total
-
-    def solve_part_two(self) -> int:
-        ''' Your goal is to gain access to the data that begins in 
-        the node with y=0 and the highest x (that is, the node in 
-        the top-right corner).'''
-
-        goal_node = self.get_node_by_location((self.max_x, 0))
-        start = goal_node
-        end = self.get_node_by_location((0, 0))
+    def find_shortest_path_between_nodes(self, 
+                                         start: Node, 
+                                         end: Node) -> list[Node]:
         queue = deque([(start, [start])])
 
         visited = set()
@@ -172,22 +156,74 @@ class Grid:
         while queue:
             node, path = queue.popleft()
             if node == end:
-                return len(path) - 1
-            avail_neighbors = self.get_adj_nodes_with_free_space(node)
-            if not avail_neighbors:
-                print(f"dead end at {node}")
-                print(self.get_adjacent_nodes(node))
-                try:
-                    node = self.move_data_from_node(node)
-                except NoFreeNeighbors:
-                    raise
-            else:
-                for neighbor in avail_neighbors:
-                    if neighbor.coord not in visited:
-                        new_path = path + [neighbor]
-                        queue.append((neighbor, new_path))
-                        visited.add(neighbor.coord)
-        return -1
+                return path
+            potential_neighbors = self.get_adjacent_nodes(node)
+            neighbors = [n for n in potential_neighbors 
+                         if n.used < self.size_of_empty_node
+                         and not n.has_goal_data]
+            for neighbor in neighbors:
+                if neighbor.coord not in visited:
+                    new_path = path + [neighbor]
+                    queue.append((neighbor, new_path))
+                    visited.add(neighbor.coord)
+        return []
+
+    def solve_part_one(self) -> int:
+        total = 0
+        for a, b in itertools.permutations(self.nodes, 2):
+            if a.used > 0 and a.used <= b.avail:
+                total += 1
+        return total
+
+    def solve_part_two(self, print_info: bool = False) -> int:
+        ''' Your goal is to gain access to the data that begins in 
+        the node with y=0 and the highest x (that is, the node in 
+        the top-right corner).'''
+
+        total_moves = 0
+        
+        # repeat until goal data is in (1, 0)
+        while self.goal_node.coord != (1, 0):
+            # move the empty node to the left of the goal data
+            if print_info:
+                print("Before moving empty node:")
+                print(f"Empty node: {self.empty_node}")
+                print(f"Goal node: {self.goal_node}")
+                print(f"Left of goal node: {self.left_of_goal_node}")
+                print()
+            
+            path = self.find_shortest_path_between_nodes(self.empty_node, 
+                                                         self.left_of_goal_node)
+            total_moves += self.move_free_space_along_path(path)
+
+            if print_info:
+                print("After moving empty node:")
+                print(f"Empty node: {self.empty_node}")
+                print(f"Goal node: {self.goal_node}")
+                print(f"Left of goal node: {self.left_of_goal_node}")
+                print()
+            
+            # move the goal data to the empty node
+            self.move_data(self.goal_node, self.empty_node)
+            total_moves += 1
+            if print_info:
+                print("After moving data:")
+                print(f"Empty node: {self.empty_node}")
+                print(f"Goal node: {self.goal_node}")
+                print(f"Left of goal node: {self.left_of_goal_node}")
+                print()
+            
+        # move the empty node to (0, 0) and move the goal data there
+        zero_one = self.get_node_by_location((0, 0))
+        path = self.find_shortest_path_between_nodes(self.empty_node, 
+                                                     zero_one)
+        total_moves += self.move_free_space_along_path(path)
+        
+        # move the goal data to the empty node
+        self.move_data(self.goal_node, self.empty_node)
+        total_moves += 1
+
+        return total_moves
 
 def parse_data(data: str) -> Grid:
     line_list = data.splitlines()
@@ -211,15 +247,12 @@ def part_one(data: str):
 
 def part_two(data: str):
     grid = parse_data(data)
-    print(grid.get_adjacent_nodes(grid.nodes[1]))
     return grid.solve_part_two()
 
-
-
 def main():
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
