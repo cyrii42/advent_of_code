@@ -1,23 +1,9 @@
-import functools
 import hashlib
-import itertools
-import json
-import math
-import operator
-import os
 import pathlib
-import re
 from collections import deque
-from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_it
+from enum import Enum
 from rich import print
-from rich.table import Table
 
 import advent_of_code as aoc
 
@@ -43,16 +29,7 @@ END = (3, 3)
 MAX_X = 3
 MAX_Y = 3
 
-class OutOfMaze(Exception):
-    ...
-
-# class Direction(Enum):
-#     UP =    'U'
-#     DOWN =  'D'
-#     LEFT =  'L'
-#     RIGHT = 'R'
-
-class Direction(IntEnum):
+class Direction(Enum):
     U = 0
     D = 1
     L = 2
@@ -80,15 +57,6 @@ class Room():
     @property
     def num_open_doors(self) -> int:
         return len([x for x in self.door_status.values() if x])
-
-    def is_part_two_end(self) -> bool:
-        return (
-            ((self.x, self.y) == (3, 2) and self.only_direction(Direction.D))
-            or ((self.x, self.y) == (2, 3) and self.only_direction(Direction.R))
-        )
-
-    def only_direction(self, test_dir: Direction) -> bool:
-        return self.door_status[test_dir] and self.num_open_doors == 1
 
     def __post_init__(self):
         self.door_codes = get_hash(f"{self.passcode}{self.path}")
@@ -130,7 +98,7 @@ class Maze:
     def get_room(self, x: int, y: int) -> Room:
         return Room(x=x, y=y, path=self.path, passcode=self.passcode)
 
-    def get_part_one_answer(self) -> str:
+    def find_path(self, part_two: bool = False):
         start = self.get_room(*START)
         end = END
         queue = deque([(start, [start])])
@@ -138,36 +106,21 @@ class Maze:
         visited = set()
         visited.add(start.hash)
 
+        longest = 0
         while queue:
             room, path = queue.popleft()
             if (room.x, room.y) == end:
-                return room.path
-            for neighbor in room.get_valid_neighbors():
-                if neighbor.hash not in visited:
-                    new_path = path + [neighbor]
-                    queue.append((neighbor, new_path))
-                    visited.add(neighbor.hash)
-        return ''
-
-    def get_part_two_answer(self) -> int:
-        all_paths = []
-        start = self.get_room(*START)
-        end = END
-        queue = deque([(start, [start])])
-
-        visited = set()
-        visited.add((start.x, start.y))
-
-        while queue:
-            room, path = queue.popleft()
-            if (room.x, room.y) == end:
-                all
-            for neighbor in room.get_valid_neighbors():
-                if neighbor.hash not in visited:
-                    new_path = path + [neighbor]
-                    queue.append((neighbor, new_path))
-                    visited.add(neighbor.hash)
-        return -1
+                if not part_two:
+                    return room.path
+                else:
+                    longest = max(len(path)-1, longest)
+            else:
+                for neighbor in room.get_valid_neighbors():
+                    if neighbor.hash not in visited:
+                        new_path = path + [neighbor]
+                        queue.append((neighbor, new_path))
+                        visited.add(neighbor.hash)
+        return longest
 
 def part_one_tests():
     for i, example in enumerate(EXAMPLE_TESTS_PART_ONE, start=1):
@@ -181,19 +134,17 @@ def part_two_tests():
         
 def part_one(data: str):
     maze = Maze(passcode=data)
-    return maze.get_part_one_answer()
+    return maze.find_path()
     
-
 def part_two(data: str):
     maze = Maze(passcode=data)
-    return maze.get_part_two_answer()
-
+    return maze.find_path(part_two=True)
 
 def main():
     part_one_tests()
     print(f"Part One (input):  {part_one(INPUT)}")
-    # part_two_tests()
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    part_two_tests()
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
