@@ -1,23 +1,8 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
 from collections import deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, Literal, NamedTuple, Optional, Protocol, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import Generator
 from rich import print
 
 import advent_of_code as aoc
@@ -54,19 +39,6 @@ DIRECTION_DELTAS = {
     Direction.WEST: (-1, 0),
     Direction.NORTHWEST: (-1, 1)
 }
-
-'''     17  16  15  14  13
-        18   5   4   3  12
-        19   6   1   2  11
-        20   7   8   9  10
-        21  22  23---> ...  
-
-    Layer #1
-    x = layer_num * 2
-    up x-1
-    left 2
-    down x
-    right x '''
 
 @dataclass
 class DataPoint:
@@ -157,7 +129,6 @@ def get_next_datapoint_part_two() -> Generator[DataPoint]:
         
         yield DataPoint(num, x, y)
         
-
 def part_two(data: str):
     puzzle_input = int(data)
     datapoint_gen = get_next_datapoint_part_two()
@@ -169,65 +140,11 @@ def part_two(data: str):
             return next_dp.num
         n += 1
     
-
-
-
 def main():
     part_one_tests()
     print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
 
-def random_tests():
-    ...
-
-
-
-# def get_layer_start_coordinates(layer_num: int) -> tuple[int, int]:
-#     '''
-#     (0, 0)    (layer_num, (0 - (layer_num-1))
-#     (1, 0)
-#     (2, -1)
-#     (3, -2)
-#     (4, -3) '''
-#     return (layer_num, (0 - (layer_num - 1)))
-
-# def get_layer_num(num: int) -> int:
-#     if num < 1:
-#         return -1
-#     gen = get_next_layer_range()
-#     layer = 0
-#     while True:
-#         next_range = next(gen)
-#         if num in next_range:
-#             return layer
-#         layer += 1
-
-# def get_nums_in_next_layer() -> Generator[int]:
-#     x = 0
-#     while True:
-#         yield 1 + sum(8*(i+1) for i in range(x))
-#         x += 1
-
-# def get_next_layer_range() -> Generator[range]:
-#     yield range(1, 2)
-    
-#     x = 2 
-#     i = 1
-#     while True:
-#         next = x + (8 * i) - 1
-#         yield range(x, next+1)
-        
-#         x = next + 1
-#         i += 1
-
-# def get_layer_start_num(layer_num: int) -> int:
-#     gen = get_next_layer_range()
-#     r = next(gen)
-#     for _ in range(layer_num):
-#         r = next(gen)
-#     return r[0]
-       
 if __name__ == '__main__':
     main()
