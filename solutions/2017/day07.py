@@ -48,6 +48,10 @@ class Tower:
     def __post_init__(self):
         self.populate_children()
 
+    def get_subtower(self) -> "Tower":
+        return Tower([p for p in self.programs
+                     if p != self.get_top_parent()])
+
     def get_program_by_name(self, name: str) -> Program:
         return next(p for p in self.programs if p.name == name)
 
@@ -103,17 +107,17 @@ def part_one(data: str):
 
 def part_two(data: str):
     tower = parse_data(data)
-    print(tower.get_stack_weights())
+    
 
     ''' I guess maybe we need to go down and create sub-stacks '''
 
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (example):  {part_one(EXAMPLE)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
