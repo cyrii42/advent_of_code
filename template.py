@@ -43,7 +43,6 @@ def part_two(data: str):
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    print()
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
 
