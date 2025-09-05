@@ -1,3 +1,4 @@
+import functools
 import itertools
 import math
 from collections import deque
@@ -5,6 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import NamedTuple
+
 from alive_progress import alive_bar
 from rich import print
 
@@ -131,6 +133,7 @@ class Grid:
                 bar()
         return min(path_lengths)
 
+@functools.cache
 def parse_data(data: str):
     line_list = data.splitlines()
     node_list = []
