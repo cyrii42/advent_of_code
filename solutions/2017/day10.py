@@ -105,12 +105,6 @@ def main():
     print()
     part_two_tests()
     print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    ...
-
        
 if __name__ == '__main__':
     main()
