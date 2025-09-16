@@ -1,23 +1,6 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-from collections import deque
-from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, Literal, NamedTuple, Optional, Protocol, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import Optional
 from rich import print
 
 import advent_of_code as aoc
@@ -33,9 +16,11 @@ INPUT = aoc.get_input(YEAR, DAY)
 class Program:
     name: str
     weight: int
+    level: Optional[int] = field(default=None)
+    parent_name: Optional[str] = field(default=None, repr=True)
+    parent: "Program" = field(init=False, repr=False)
     children_names: list[str] = field(default_factory=list, repr=False)
     children: list["Program"] = field(default_factory=list, repr=False)
-    parent: "Program" = field(init=False, repr=False)
 
     @property
     def total_weight(self) -> int:       
@@ -44,26 +29,32 @@ class Program:
 @dataclass
 class Tower:
     programs: list[Program]
+    parent_to_children_dict: dict[str, list[str]] = field(init=False, repr=False)
+    child_to_parent_dict: dict[str, str] = field(init=False, repr=False)
 
     def __post_init__(self):
-        self.populate_children()
+        self.parent_to_children_dict = self.make_parent_to_children_dict()
+        self.child_to_parent_dict = self.make_child_to_immediate_parent_dict()
+        self.populate_parents()
+        self.create_tree()
 
-    def get_program_by_name(self, name: str) -> Program | None:
+    @property
+    def num_levels(self) -> int:
+        return max(program.level for program in self.programs) # type: ignore
+
+    def get_program_by_name(self, name: str) -> Program:
         try:
             return next(p for p in self.programs if p.name == name)
         except StopIteration:
             print(f"Can't find program w/ name {name} among {len(self.programs)} programs:",
                   f"{[program.name for program in self.programs]}")
-            return None
+            raise
 
-    def populate_children(self) -> None:
-        for program in self.programs:
-            if not program.children_names:
-                continue
-            for name in program.children_names:
-                prog_to_append = self.get_program_by_name(name)
-                if prog_to_append:
-                    program.children.append(prog_to_append)
+    def get_program_weight_by_name(self, name: str) -> int:
+        try:
+            return self.get_program_by_name(name).weight
+        except StopIteration:
+            raise
 
     def get_all_children_names(self) -> set[str]:
         output_set = set()
@@ -78,17 +69,15 @@ class Tower:
         return next(p for p in self.programs 
                     if p.name not in self.get_all_children_names())
 
-    def get_stack_weights(self) -> list[int]:
-        top_parent = self.get_top_parent()
-        return [child.total_weight for child in top_parent.children]
-
-    def get_sub_towers(self) -> list["Tower"]:
-        top_parent = self.get_top_parent()
-        return [Tower(child.children) for child in top_parent.children if child.children]
-
     def make_parent_to_children_dict(self) -> dict[str, list[str]]:
         return {p.name: p.children_names for p in self.programs}
 
+    def populate_parents(self) -> None:
+        for child_name, parent_name in self.child_to_parent_dict.items():
+            child_program = self.get_program_by_name(child_name)
+            if child_program:
+                child_program.parent_name = parent_name
+        
     def make_child_to_immediate_parent_dict(self) -> dict[str, str]:
         output_dict: dict[str, str] = {}
 
@@ -98,23 +87,59 @@ class Tower:
             for child in child_list:
                 all_children.add(child)
                 
-        for child in all_children:
+        for child in self.programs:
             parents = [parent for parent in parent_to_children_dict.keys()
-                          if child in parent_to_children_dict[parent]]
+                          if child.name in parent_to_children_dict[parent]]
             if len(parents) > 1:
-                raise IndexError(f"Found {len(parents)} for program {child}")
+                raise IndexError(f"Found {len(parents)} for program {child.name}")
             if len(parents) == 1:
-                output_dict[child] = parents[0]
+                output_dict[child.name] = parents[0]
+            elif len(parents) == 0:
+                output_dict[child.name] = ''
         return output_dict
 
-    def print_hierarchy(self):
-        parents = [self.get_top_parent()]
+    def get_substack_weight(self, program_name: str) -> int:
+        prog = self.get_program_by_name(program_name)
+        if not prog.children_names:
+            return prog.weight
+        else:
+            return prog.weight + sum(self.get_substack_weight(p) for p in prog.children_names)
 
-        level = 0
-        while True:
-            print(f"Level {level}: ")
+    def create_tree(self, 
+                    parent_name: Optional[str] = None, 
+                    level: int = 1, 
+                    print_info: bool = False):
+        if not parent_name:
+            top_parent = self.get_top_parent()
+            top_parent.level = 0
+            parent_name = top_parent.name
             
-            
+        children = self.parent_to_children_dict[parent_name]
+        tabs = ''.join('\t' for _ in range(level))
+
+        if children:
+            if print_info:
+             print(f"{tabs}Parent (level #{level}): {parent_name} | ",
+                   f"Weight: {self.get_program_weight_by_name(parent_name)} | ",
+                   f"Stack Weight: {self.get_substack_weight(parent_name)}")
+            for child_name in children:
+                child_prog = self.get_program_by_name(child_name)
+                child_prog.level = level
+                self.create_tree(child_name, level=level+1, print_info=print_info)
+                
+    def check_weights(self):
+        for level in range(self.num_levels):
+            for prog in [p for p in self.programs if p.level == level]:
+                children = [self.get_program_by_name(child)
+                            for child in prog.children_names]
+                if not children:
+                    continue
+                
+                if len(set([self.get_substack_weight(c.name) for c in children])) != 1:
+                    print(f"{prog.name} (level #{level}) ({prog.weight}): ")
+                    for c in children:
+                        print(f"{c.name} ({c.weight}): {self.get_substack_weight(c.name)}")
+                    print()
 
 def parse_data(data: str) -> Tower:
     line_list = data.splitlines()
@@ -143,17 +168,8 @@ def part_one(data: str):
 
 def part_two(data: str):
     tower = parse_data(data)
-    print(tower.make_parent_to_children_dict())
-    print(tower.make_child_to_immediate_parent_dict())
+    tower.check_weights()
 
-
-    ''' Can we make a dictionary for looking up a program's parents? '''
-    
-    # sub_towers = tower.get_sub_towers()
-    # print(sub_towers)
-    
-
-    ''' I guess maybe we need to go down and create sub-stacks '''
 
 
 
@@ -161,7 +177,7 @@ def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
