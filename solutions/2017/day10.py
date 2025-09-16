@@ -32,11 +32,11 @@ def create_knot_hash(input_lengths: list[int],
     list_length = len(start_list)
     output_list = start_list
     for length in input_lengths:
-        if length > 1:             # if the length is 0 or 1, no need to reverse anything
+        if length > 1:   # if the length is 0 or 1, no need to reverse anything
             range_start = current_position
             range_end = (current_position + length) % list_length
             
-            if range_end <= range_start:         # if we've wrapped around the list
+            if range_end <= range_start:   # if we've wrapped around the list
                 nums = list(reversed(output_list[range_start:] + output_list[:range_end]))
                 output_list[range_start:] = nums[0:(list_length - range_start)]
                 output_list[:range_end] = nums[(list_length - range_start):]
@@ -74,13 +74,7 @@ def create_dense_hash(sparse_hash: list[int]) -> list[int]:
     return output_list 
 
 def create_hex_output(dense_hash: list[int]):
-    output = ''
-    for x in dense_hash:
-        next_hex = hex(x).removeprefix('0x')
-        if len(next_hex) == 1:
-            next_hex = f"0{next_hex}"
-        output += next_hex
-    return output
+    return ''.join(f"{hex(x).removeprefix('0x'):0>2}" for x in dense_hash)
 
 def part_one_test():
     input_lengths = [int(x) for x in EXAMPLE.split(',')]
