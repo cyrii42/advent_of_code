@@ -58,19 +58,19 @@ def model_path(start: HexCoordinate,
                directions: list[HexDirection], 
                part_two: bool = False
                ) -> int:
-    distance = 0
+    current_distance = 0
     furthest_distance = 0
     current_position = start
 
     for dir in directions:
         current_position = execute_instruction(current_position, dir)
-        distance = max(point for point in current_position)
-        furthest_distance = max(distance, furthest_distance)
+        current_distance = max(point for point in current_position)
+        furthest_distance = max(current_distance, furthest_distance)
 
     if part_two:
         return furthest_distance
     else:
-        return distance
+        return current_distance
 
 def parse_data(data: str) -> list[HexDirection]:
     return [HexDirection(s.upper()) for s in data.split(',')]
