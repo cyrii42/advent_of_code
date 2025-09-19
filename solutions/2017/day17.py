@@ -47,48 +47,64 @@ class Spinlock:
         return len(self.buffer)
 
     def run_simulation(self):
-        print(f"{self.buffer} (Position: {self.ptr}) (buffer size {self.buffer_size})")
-        for _ in range(10):
-            self.ptr = self.ptr + self.num_steps % self.buffer_size
-            self.buffer.insert(self.ptr+1, next(self.counter))
-            print(f"{self.buffer} (Position: {self.ptr}) (buffer size {self.buffer_size})")
-        # self.buffer[self.ptr + 1] = 2017
+        ''' It starts with a circular buffer containing only the value 0, 
+        which it marks as the current position. It then steps forward through 
+        the circular buffer some number of steps (your puzzle input) before
+        inserting the first new value, 1, after the value it stopped on. The 
+        inserted value becomes the current position. Then, it steps forward 
+        from there the same number of steps, and wherever it stops, inserts 
+        after it the second new value, 2, and uses that as the new current 
+        position again.'''
+
+        num_insertions = 2017
+
+        for _ in range(num_insertions):
+            self.ptr = (self.ptr + self.num_steps) % self.buffer_size
+            self.insert_new_number(next(self.counter))
+            self.ptr = self.ptr + 1
+
+    def insert_new_number(self, num: int) -> None:
+        idx = self.ptr
+        if idx >= self.buffer_size - 1:
+            self.buffer.append(num)
+        else:
+            self.buffer.insert(idx+1, num)
 
     def solve_part_one(self) -> int:
         self.run_simulation()
         idx_2017 = self.buffer.index(2017)
-        print(self.buffer[idx_2017-5:idx_2017+6])
         return self.buffer[idx_2017+1]
-    
-    
-    
+
+    def solve_part_two(self) -> int:
+        ...
+
+def modulo_tests():
+    n = 0
+    mod = 2
+    for x in range(1, 4):
+        print(f"{n} + {x} mod {mod} = {(n+x)%mod}")
     
 def part_one(data: str):
     num_steps = int(data)
     spinlock = Spinlock(num_steps=num_steps)
-    spinlock.run_simulation()
-    # return spinlock.solve_part_one()
+    return spinlock.solve_part_one()
 
 def part_two(data: str):
     num_steps = int(data)
-
+    spinlock = Spinlock(num_steps=num_steps)
+    return spinlock.solve_part_two()
 
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
+    # random_tests()
 
 def random_tests():
-    for n in range(5):
-        print(f"{n}: {(n+3) % (n+1)}")
-    asdf = [1, 2, 3, 4, 5]
-    asdf.insert(3, 9)
-    print(asdf)
-    print((0 + 3) % 1)
+    modulo_tests()
 
        
 if __name__ == '__main__':
