@@ -14,6 +14,8 @@ EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
 
+EXAMPLE_PART_TWO = 'snd 1\nsnd 2\nsnd p\nrcv a\nrcv b\nrcv c\nrcv d'
+
 class NoValidFunction(Exception):
     pass
 
@@ -189,8 +191,8 @@ def part_two(data: str):
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
+    # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
