@@ -1,4 +1,5 @@
 import pathlib
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -22,29 +23,33 @@ class NoValidFunction(Exception):
 def dummy_func():
     raise NoValidFunction
 
+class AwaitingInput(Exception):
+    pass
+
+class NewOutput(Exception):
+    pass
+
 @dataclass
 class Instruction:
     name: str
     v1: str|int
     v2: Optional[str|int] = None
 
-    # @property
-    # def is_valid(self) -> bool:
-    #     if self.name in ['inc', 'dec'] and self.v2:
-    #         return False
-    #     if self.name == 'cpy' and (not self.v2 or isinstance(self.v2, int)):
-    #         return False
-    #     return True
-
 @dataclass
 class Computer:
     program: list[Instruction]
+    id: int = 0
     ptr: int = 0
     register_dict: dict[str, int] = field(default_factory=dict)
     instructions_dict: dict[str, Callable] = field(
         default_factory=dict, repr=False)
     sounds_played: list[int] = field(default_factory=list)
     sound_recovered: bool = False
+    output_queue: deque[int] = field(init=False)
+    input_queue: deque[int] = field(default_factory=deque)
+    values_sent: int = 0
+    part_two: bool = False
+    awaiting_input: bool = False
 
     @property
     def last_sound_played(self) -> int:
@@ -60,47 +65,79 @@ class Computer:
             'rcv': self.rcv,
             'jgz': self.jgz
         }
+        if part_two:
+            self.output_queue = deque([1, 2, self.id])
+            self.set_register_value('p', self.id)
 
     def solve_part_one(self) -> int:
         ''' The program exits when it tries to run an instruction 
         beyond the ones defined. '''
         while self.ptr < len(self.program):
-            inst = self.program[self.ptr]
-            func = self.get_instruction_func(inst.name)
-            try:
-                if inst.v1 is not None and inst.v2 is not None:
-                    func(inst.v1, inst.v2)
-                else:
-                    func(inst.v1)
-            except TypeError:
-                print(f"Trying to execute {inst} at line {self.ptr}")
-                raise
+            self.execute_next_instruction()
             if self.sound_recovered:
                 return self.last_sound_played
         return -9999999
 
-    def solve_part_two(self) -> int:
-        ...
+    def execute_next_instruction(self) -> None:
+        if self.awaiting_input and not self.input_queue:
+            raise AwaitingInput
+        
+        inst = self.program[self.ptr]
+        func = self.get_instruction_func(inst.name)
+        try:
+            if inst.v1 is not None and inst.v2 is not None:
+                func(inst.v1, inst.v2)
+            else:
+                func(inst.v1)
+        except TypeError:
+            print(f"Trying to execute {inst} at line {self.ptr}")
+            raise
+        except NewOutput:
+            raise
             
     def get_register_value(self, r: str) -> int:
         return self.register_dict.get(r, 0)
 
     def set_register_value(self, r: str, value: int) -> None:
-        if not isinstance(value, int):
-            raise TypeError
         self.register_dict[r] = value
 
     def get_instruction_func(self, inst_name: str) -> Callable:
-        try:
-            return self.instructions_dict[inst_name]
-        except KeyError:
-            raise NoValidFunction(f"Could not find instruction {inst_name}")
+        return self.instructions_dict.get(inst_name, dummy_func)
 
     def snd(self, x: int) -> None:
-        ''' plays a sound with a frequency equal to the value of X '''
+        ''' PART ONE: plays a sound with a frequency equal to the value of X
+
+        PART TWO: sends the value of X to the other program '''
         x_value = x if isinstance(x, int) else self.get_register_value(x)
-        self.sounds_played.append(x_value)
+        if self.part_two:
+            self.output_queue.append(x_value)
+            self.ptr += 1
+            self.values_sent += 1
+            raise NewOutput
+        else:
+            self.sounds_played.append(x_value)
         self.ptr += 1
+
+    def rcv(self, x: str|int) -> int | None:
+        ''' PART ONE: recovers the frequency of the last sound played, but only 
+        when the value of X is not zero. (If it is zero, the command 
+        does nothing)
+
+        PART TWO: receives the next value and stores it in register X '''
+        if self.part_two:
+            try:
+                assert isinstance(x, str)
+                value = self.input_queue.popleft()
+                self.set_register_value(x, value)
+                self.ptr += 1
+            except IndexError:
+                self.awaiting_input = True
+                return
+        else:
+            x_value = x if isinstance(x, int) else self.get_register_value(x)
+            if x_value != 0:
+                self.sound_recovered = True
+            self.ptr += 1
 
     def set(self, x: str, y: int) -> None:
         ''' sets register X to the value of Y '''
@@ -135,15 +172,6 @@ class Computer:
         self.set_register_value(x, new_value)
         self.ptr += 1
         
-    def rcv(self, x: str|int) -> int | None:
-        ''' recovers the frequency of the last sound played, but only 
-        when the value of X is not zero. (If it is zero, the command 
-        does nothing) '''
-        x_value = x if isinstance(x, int) else self.get_register_value(x)
-        if x_value != 0:
-            self.sound_recovered = True
-        self.ptr += 1
-        
     def jgz(self, x: str|int, y: str|int):
         ''' jumps with an offset of the value of Y, but only if the 
         value of X is greater than zero. (An offset of 2 skips the 
@@ -156,7 +184,7 @@ class Computer:
         else:
             self.ptr += 1
         
-def parse_data(data: str) -> Computer:
+def parse_data(data: str) -> list[Instruction]:
     line_list = data.splitlines()
 
     output_list = []
@@ -178,26 +206,43 @@ def parse_data(data: str) -> Computer:
             output_list.append(Instruction(name, v1, v2))
         else:
             output_list.append(Instruction(name, v1))
-    return Computer(output_list)
+    return output_list
     
 def part_one(data: str):
-    computer = parse_data(data)
+    instruction_list = parse_data(data)
+    computer = Computer(instruction_list)
     return computer.solve_part_one()
 
 def part_two(data: str):
-    computer = parse_data(data)
-    return computer.solve_part_two()
+    instruction_list = parse_data(data)
+    comp0 = Computer(instruction_list, id=0, part_two=True)
+    comp1 = Computer(instruction_list, id=1, part_two=True)
+
+    while True:
+        try:
+            comp0.execute_next_instruction()
+        except AwaitingInput:
+            pass
+        except NewOutput:
+            value = comp0.output_queue.pop()
+            comp1.input_queue.append(value)
+            
+        try:
+            comp1.execute_next_instruction()
+        except AwaitingInput:
+            pass
+        except NewOutput:
+            value = comp1.output_queue.pop()
+            comp0.input_queue.append(value)
+
+        if comp0.awaiting_input and comp1.awaiting_input:
+            return comp1.values_sent
         
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    ...
+    print(f"Part Two (input):  {part_two(INPUT)}")
        
 if __name__ == '__main__':
     main()
