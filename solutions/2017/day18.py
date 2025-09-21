@@ -65,7 +65,7 @@ class Computer:
             'rcv': self.rcv,
             'jgz': self.jgz
         }
-        if part_two:
+        if self.part_two:
             self.output_queue = deque([1, 2, self.id])
             self.set_register_value('p', self.id)
 
