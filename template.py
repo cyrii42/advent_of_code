@@ -1,23 +1,24 @@
 import functools
-import itertools
-import operator
 import hashlib
+import itertools
 import json
 import math
+import operator
 import os
+import sys
 import re
-from pathlib import Path
-from collections import deque, defaultdict
+from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum
+from pathlib import Path
 from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, NamedTuple, Optional, Protocol, Self, Literal, Generator
+from typing import Callable, Generator, NamedTuple, Optional, Self
 
 import numpy as np
 import pandas as pd
 import polars as pl
-from alive_progress import alive_it, alive_bar
+from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
