@@ -1,23 +1,6 @@
-import functools
-import itertools
-import operator
-import hashlib
-import json
-import math
-import os
-import re
+from dataclasses import dataclass
 from pathlib import Path
-from collections import deque, defaultdict
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, NamedTuple, Optional, Protocol, Self, Literal, Generator
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_it, alive_bar
+from typing import NamedTuple
 from rich import print
 
 import advent_of_code as aoc
@@ -26,7 +9,10 @@ CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
-EXAMPLE = aoc.get_example(YEAR, DAY)
+EXAMPLE_PART_ONE = 'p=< 3,0,0>, v=< 2,0,0>, a=<-1,0,0>\np=< 4,0,0>, v=< 0,0,0>, a=<-2,0,0>'
+EXAMPLE_PART_TWO = ('p=<-6,0,0>, v=< 3,0,0>, a=< 0,0,0>\np=<-4,0,0>, v=< 2,0,0>, a=< 0,0,0>'+
+                    '\np=<-2,0,0>, v=< 1,0,0>, a=< 0,0,0>\np=< 3,0,0>, v=<-1,0,0>, a=< 0,0,0>')
+
 INPUT = aoc.get_input(YEAR, DAY)
 
 class Point(NamedTuple):
@@ -34,47 +20,75 @@ class Point(NamedTuple):
     y: int
     z: int
 
-@dataclass
+@dataclass()
 class Particle:
-    position: Point
-    velocity: Point
-    acceleration: Point
+    id: int
+    p: Point
+    v: Point
+    a: Point
 
     @property
-    def distance_from_origin(self) -> int:
-        ''' the sum of the absolute values of a particle's X, Y, and Z position '''
-        x, y, z = self.position
+    def distance(self) -> int:
+        x, y, z = self.p
         return sum([abs(x), abs(y), abs(z)])
 
-    def get_position(self, t: int) -> Point:
-        ...
+    def update_position(self) -> None:
+        self.v = add_points(self.v, self.a)
+        self.p = add_points(self.p, self.v)
 
-    def get_velocity(self, t: int) -> Point:
-        ...
-    
+    def __eq__(self, other):
+        return self.p == other.p
 
-def parse_data(data: str):
+def add_points(p1: Point, p2: Point) -> Point:
+    x1, y1, z1 = p1
+    x2, y2, z2 = p2
+    return Point(x1+x2, y1+y2, z1+z2)
+
+def parse_data(data: str) -> list[Particle]:
     line_list = data.splitlines()
+    output_list = []
+    for i, line in enumerate(line_list):
+        line = (line.replace(' ', '').replace('<','').replace('>','')
+                .replace('p=', '').replace('v=','').replace('a=',''))
+        line = [int(x) for x in line.split(',')]
+        px, py, pz, vx, vy, vz, ax, ay, az = line
+        particle = Particle(
+                    id=i,
+                    p=Point(px, py, pz),
+                    v=Point(vx, vy, vz),
+                    a=Point(ax, ay, az))
+        output_list.append(particle)
+    return output_list
     
 def part_one(data: str):
-    __ = parse_data(data)
+    particle_list = parse_data(data)
+    for _ in range(10_000):
+        for particle in particle_list:  
+            particle.update_position()
+    closest = next(particle for particle in
+                   sorted(particle_list, key=lambda x: x.distance))
+    return closest.id
 
+def eliminate_matches(particle_list: list[Particle]) -> list[Particle]:
+    for particle in particle_list:
+        if particle_list.count(particle) > 1:
+            particle_list = [p for p in particle_list if p != particle]
+    return particle_list
+            
 def part_two(data: str):
-    __ = parse_data(data)
-
-
+    particle_list = parse_data(data)
+    for _ in range(1000):
+        for particle in particle_list:
+            particle.update_position()
+        if any(particle_list.count(p) > 1 for p in particle_list):
+            particle_list = eliminate_matches(particle_list)
+    return len(particle_list)
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (example):  {part_one(EXAMPLE_PART_ONE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    ...
-
        
 if __name__ == '__main__':
     main()
