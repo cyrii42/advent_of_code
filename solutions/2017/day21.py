@@ -33,6 +33,7 @@ INPUT = aoc.get_input(YEAR, DAY)
 START = np.array([[0, 1, 0],
                   [0, 0, 1],
                   [1, 1, 1]])
+# START = np.rot90(START, k=3)
 
 # START = np.array([[1, 1, 0, 1, 1, 0],
 #                   [1, 0, 0, 1, 0, 0], 
@@ -49,17 +50,34 @@ class EnhancementFailed(Exception):
 class Rule:
     input: np.ndarray
     output: np.ndarray
+    potential_inputs: list[np.ndarray] = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self.potential_inputs = self.create_potential_inputs_list()
+
+    def create_potential_inputs_list(self) -> list[np.ndarray]:
+        return [self.input.copy(),
+                np.flip(self.input.copy()),
+                np.fliplr(self.input.copy()),
+                np.rot90(self.input.copy(), k=1),
+                np.flip(np.rot90(self.input.copy(), k=1)),
+                np.fliplr(np.rot90(self.input.copy(), k=1)),
+                np.rot90(self.input.copy(), k=2),
+                np.flip(np.rot90(self.input.copy(), k=2)),
+                np.fliplr(np.rot90(self.input.copy(), k=2)),
+                np.rot90(self.input.copy(), k=3),
+                np.flip(np.rot90(self.input.copy(), k=3)),
+                np.fliplr(np.rot90(self.input.copy(), k=3)),]
 
     def check_input(self, input_image: np.ndarray) -> bool:
         if input_image.shape[0] != self.input.shape[0]:
             return False
 
-        return (np.array_equal(input_image, self.input) 
-                or np.array_equal(np.flipud(input_image), self.input)
-                or np.array_equal(np.fliplr(input_image), self.input)
-                or np.array_equal(np.rot90(input_image, k=1), self.input)
-                or np.array_equal(np.rot90(input_image, k=2), self.input)
-                or np.array_equal(np.rot90(input_image, k=3), self.input))
+        return any(np.array_equal(test, self.input)
+                   for test in self.potential_inputs)
+
+    def to_dict(self) -> dict[bytes, np.ndarray]:
+        return {test.tobytes(): self.output for test in self.potential_inputs}
 
     def __repr__(self) -> str:
         return self.input.__str__() + ' => \n' + self.output.__str__()
@@ -87,16 +105,6 @@ class ArtGenerator:
         return self.image.sum()
 
     def enhance_image(self) -> None:
-        ''' If the size is evenly divisible by 2, break the pixels up 
-            into 2x2 squares, and convert each 2x2 square into a 3x3 square 
-            by following the corresponding enhancement rule. 
-
-            Otherwise, the size is evenly divisible by 3; break the 
-            pixels up into 3x3 squares, and convert each 3x3 square into 
-            a 4x4 square by following the corresponding enhancement rule.
-
-            Finally, join the squares into a new grid.'''
-
         # if image size = 3, we only have one sub-image, so enhance it and return
         if self.image_size == 3:
             self.image = self._enhance_subimage(self.image)
@@ -128,12 +136,20 @@ class ArtGenerator:
         for rule in self.ruleset:
             if rule.check_input(subimage):
                 return rule.output
-        raise EnhancementFailed
+        raise EnhancementFailed(subimage)
 
     def _merge_enhanced_subimages(self, subimage_list: list[np.ndarray]) -> np.ndarray:
-        ...
+        num_subimages = len(subimage_list)
+        subimages_per_row = math.isqrt(num_subimages)
+        num_rows = subimages_per_row
 
-    
+        row_list = []
+        for i in range(num_rows):
+            start = 0 + i*subimages_per_row
+            end = subimages_per_row + i*subimages_per_row
+            row_list.append(np.concatenate(*[subimage_list[start:end]], axis=1))
+
+        return np.concatenate([row for row in row_list], axis=0)       
 
 def parse_data(data: str) -> list[Rule]:
     line_list = data.splitlines()
@@ -150,27 +166,123 @@ def parse_data(data: str) -> list[Rule]:
 def part_one(data: str):
     art_generator = ArtGenerator(data)
     num_iterations = 2 if data == EXAMPLE else 5
-    # for rule in art_generator.ruleset:
-    #     print(f"{rule}\n")
     for _ in range(num_iterations):
         art_generator.enhance_image()
-    # print(art_generator.image)
-    # return art_generator.num_pixels_on
+    return art_generator.num_pixels_on
+
+@dataclass
+class ArtGenerator_v2:
+    data: str = field(repr=False)
+    image: pl.DataFrame = field(init=False, repr=False)
+    ruleset: list[Rule] = field(init=False, repr=False)
+    ruleset_dict: dict[bytes, np.ndarray] = field(default_factory=dict, repr=False)
+    subimage_dict: dict[bytes, int] = field(default_factory=dict, repr=False)
+
+    def __post_init__(self) -> None:
+        self.image = pl.DataFrame(START)
+        self.ruleset = parse_data(self.data)
+
+    @property
+    def image_size(self) -> int:
+        ''' Returns the length of the first row of the image '''
+        return self.image.shape[0]
+
+    @property
+    def num_pixels_on(self) -> int:
+        return self.image.sum()
+
+    def enhance_image(self) -> None:
+        if self.image_size == 3:
+            self.image = self._enhance_subimage(self.image)
+            return
+
+        subimage_list = self._extract_subimages()
+        enhanced_subimages = [self._enhance_subimage(si) for si in subimage_list]
+
+        self.image = self._merge_enhanced_subimages(enhanced_subimages)
+        
+        # self.subimage_dict = self._create_subimage_dict(enhanced_subimages)
+        # print(self.subimage_dict)
+
+    # def _create_subimage_dict(self, subimages: list[np.ndarray]) -> dict[bytes, int]:
+    #     return {subimage.tobytes(): subimages.count(subimage) for subimage in subimages}
+
+    def _extract_subimages(self) -> list[np.ndarray]:
+        subimage_size = 2 if self.image_size % 2 == 0 else 3
+        
+        slices = [(0+(i*subimage_size),subimage_size+(i*subimage_size))
+                  for i in range(self.image_size // subimage_size)]
+        
+        output_list = []
+        for pair in itertools.product(slices, repeat=2):
+            image_copy = self.image
+            s1, s2 = pair
+            output_list.append(image_copy[s1[0]:s1[1], s2[0]:s2[1]])
+        return output_list
+
+    def _enhance_subimage(self, subimage: np.ndarray) -> np.ndarray:
+        for rule in self.ruleset:
+            if rule.check_input(subimage):
+                return rule.output
+        raise EnhancementFailed(subimage)
+
+    def _merge_enhanced_subimages(self, subimage_list: list[np.ndarray]) -> np.ndarray:
+        num_subimages = len(subimage_list)
+        subimages_per_row = math.isqrt(num_subimages)
+        num_rows = subimages_per_row
+
+        row_list = []
+        for i in range(num_rows):
+            start = 0 + i*subimages_per_row
+            end = subimages_per_row + i*subimages_per_row
+            row_list.append(np.concatenate(*[subimage_list[start:end]], axis=1))
+
+        return np.concatenate([row for row in row_list], axis=0)     
 
 def part_two(data: str):
+    ''' https://www.reddit.com/r/adventofcode/comments/7l78eb/comment/drk8j2m/
+
+    After 3 iterations a 3x3 block will have transformed into 9 more 3x3 blocks whose
+    futures can all be calculated independently. Using this fact I just keep track of 
+    how many of each "type" of 3x3 block I have at each stage, and can thus easily 
+    calculate the number of each type of 3x3 block I'll have 3 iterations later.'''
+
+    '''
+    OTHER IDEA:
+    - there are only so many rules; maybe, instead of actually reconstructing the 
+    picture each time, you just have a dictionary that keeps a running tally of 
+    how many of each output type there are
+        - but then how do you make the NEXT image?
+        - 
+
+    '''
     art_generator = ArtGenerator(data)
-    
+    num_iterations = 2 if data == EXAMPLE else 10
+    for _ in range(num_iterations):
+        art_generator.enhance_image()
+        print(art_generator.num_pixels_on)
+    return art_generator.num_pixels_on
+
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
 def random_tests():
     ...
+    # print(START)
+    # b = START.tolist()
+    # print(str(START))
+    # print(np.frombuffer(b, dtype=int))   
+
+    # l = {START.tobytes(): START}
+    # l1 = l[START.tobytes()]
+    # print(np.array(l1))
+
             
 if __name__ == '__main__':
     main()
