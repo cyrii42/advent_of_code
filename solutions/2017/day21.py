@@ -151,16 +151,21 @@ class ArtGenerator:
 
         return np.concatenate([row for row in row_list], axis=0)       
 
-def parse_data(data: str) -> list[Rule]:
+def parse_data(data: str, part_two: bool=False) -> list[Rule]:
     line_list = data.splitlines()
     output_list = []
     for line in line_list:
         line = line.replace('#', '1').replace('.', '0').replace('=>', '/')
         line = [x.strip() for x in line.split('/')]
         break_pt = len(line) // 2   # 2 of 5 OR 3 of 7
-        start = np.array([[int(c) for c in num] for num in line[0:break_pt]])
-        end = np.array([[int(c) for c in num] for num in line[break_pt:]])
-        output_list.append(Rule(start, end))
+        if part_two:
+            start = pl.DataFrame([[int(c) for c in num] for num in line[0:break_pt]])
+            end = pl.DataFrame([[int(c) for c in num] for num in line[break_pt:]])
+            output_list.append(Rule_v2(start, end))
+        else:
+            start = np.array([[int(c) for c in num] for num in line[0:break_pt]])
+            end = np.array([[int(c) for c in num] for num in line[break_pt:]])
+            output_list.append(Rule(start, end))
     return output_list
 
 def part_one(data: str):
@@ -171,16 +176,52 @@ def part_one(data: str):
     return art_generator.num_pixels_on
 
 @dataclass
+class Rule_v2:
+    input: pl.DataFrame
+    output: pl.DataFrame
+    potential_inputs: list[pl.DataFrame] = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self.potential_inputs = self.create_potential_inputs_list()
+        # print(self.potential_inputs)
+
+    def create_potential_inputs_list(self) -> list[pl.DataFrame]:
+        nparray = self.input.to_numpy()
+        return [pl.from_numpy(nparray.copy()),
+                pl.from_numpy(np.flip(nparray.copy())),
+                pl.from_numpy(np.fliplr(nparray.copy())),
+                pl.from_numpy(np.rot90(nparray.copy(), k=1)),
+                pl.from_numpy(np.flip(np.rot90(nparray.copy(), k=1))),
+                pl.from_numpy(np.fliplr(np.rot90(nparray.copy(), k=1))),
+                pl.from_numpy(np.rot90(nparray.copy(), k=2)),
+                pl.from_numpy(np.flip(np.rot90(nparray.copy(), k=2))),
+                pl.from_numpy(np.fliplr(np.rot90(nparray.copy(), k=2))),
+                pl.from_numpy(np.rot90(nparray.copy(), k=3)),
+                pl.from_numpy(np.flip(np.rot90(nparray.copy(), k=3))),
+                pl.from_numpy(np.fliplr(np.rot90(nparray.copy(), k=3)))]
+
+    def check_input(self, input_image: pl.DataFrame) -> bool:
+        if input_image.shape[0] != self.input.shape[0]:
+            return False
+
+        return any(self.input.equals(test)
+                   for test in self.potential_inputs)
+
+    def __repr__(self) -> str:
+        return self.input.__str__() + ' => \n' + self.output.__str__()
+
+@dataclass
 class ArtGenerator_v2:
-    data: str = field(repr=False)
-    image: pl.DataFrame = field(init=False, repr=False)
-    ruleset: list[Rule] = field(init=False, repr=False)
-    ruleset_dict: dict[bytes, np.ndarray] = field(default_factory=dict, repr=False)
-    subimage_dict: dict[bytes, int] = field(default_factory=dict, repr=False)
+    data: str
+    image: pl.DataFrame = field(init=False)
+    ruleset: list[Rule_v2] = field(init=False)
 
     def __post_init__(self) -> None:
-        self.image = pl.DataFrame(START)
-        self.ruleset = parse_data(self.data)
+        self.image = pl.from_numpy(START)
+        self.ruleset = parse_data(self.data, part_two=True)
+
+    def __repr__(self) -> str:
+        return self.image.__str__()
 
     @property
     def image_size(self) -> int:
@@ -189,25 +230,24 @@ class ArtGenerator_v2:
 
     @property
     def num_pixels_on(self) -> int:
-        return self.image.sum()
+        return self.image.sum().sum_horizontal()[0]
 
     def enhance_image(self) -> None:
+        # if image size = 3, we only have one sub-image, so enhance it and return
         if self.image_size == 3:
             self.image = self._enhance_subimage(self.image)
             return
 
+        # otherwise, break the pixels up into 2x2 or 3x3 squares
         subimage_list = self._extract_subimages()
+
+        # then enhance each sub-image
         enhanced_subimages = [self._enhance_subimage(si) for si in subimage_list]
 
+        # then stitch the sub-images back together
         self.image = self._merge_enhanced_subimages(enhanced_subimages)
-        
-        # self.subimage_dict = self._create_subimage_dict(enhanced_subimages)
-        # print(self.subimage_dict)
 
-    # def _create_subimage_dict(self, subimages: list[np.ndarray]) -> dict[bytes, int]:
-    #     return {subimage.tobytes(): subimages.count(subimage) for subimage in subimages}
-
-    def _extract_subimages(self) -> list[np.ndarray]:
+    def _extract_subimages(self) -> list[pl.DataFrame]:
         subimage_size = 2 if self.image_size % 2 == 0 else 3
         
         slices = [(0+(i*subimage_size),subimage_size+(i*subimage_size))
@@ -220,13 +260,13 @@ class ArtGenerator_v2:
             output_list.append(image_copy[s1[0]:s1[1], s2[0]:s2[1]])
         return output_list
 
-    def _enhance_subimage(self, subimage: np.ndarray) -> np.ndarray:
+    def _enhance_subimage(self, subimage: pl.DataFrame) -> pl.DataFrame:
         for rule in self.ruleset:
             if rule.check_input(subimage):
                 return rule.output
         raise EnhancementFailed(subimage)
 
-    def _merge_enhanced_subimages(self, subimage_list: list[np.ndarray]) -> np.ndarray:
+    def _merge_enhanced_subimages(self, subimage_list: list[pl.DataFrame]) -> pl.DataFrame:
         num_subimages = len(subimage_list)
         subimages_per_row = math.isqrt(num_subimages)
         num_rows = subimages_per_row
@@ -235,9 +275,9 @@ class ArtGenerator_v2:
         for i in range(num_rows):
             start = 0 + i*subimages_per_row
             end = subimages_per_row + i*subimages_per_row
-            row_list.append(np.concatenate(*[subimage_list[start:end]], axis=1))
+            row_list.append(pl.concat(*[subimage_list[start:end]]))
 
-        return np.concatenate([row for row in row_list], axis=0)     
+        return pl.concat([row for row in row_list])        
 
 def part_two(data: str):
     ''' https://www.reddit.com/r/adventofcode/comments/7l78eb/comment/drk8j2m/
@@ -256,8 +296,8 @@ def part_two(data: str):
         - 
 
     '''
-    art_generator = ArtGenerator(data)
-    num_iterations = 2 if data == EXAMPLE else 10
+    art_generator = ArtGenerator_v2(data)
+    num_iterations = 2 if data == EXAMPLE else 18
     for _ in range(num_iterations):
         art_generator.enhance_image()
         print(art_generator.num_pixels_on)
@@ -266,8 +306,8 @@ def part_two(data: str):
 
 def main():
     # print(f"Part One (example):  {part_one(EXAMPLE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
@@ -282,6 +322,9 @@ def random_tests():
     # l = {START.tobytes(): START}
     # l1 = l[START.tobytes()]
     # print(np.array(l1))
+
+    df = pl.DataFrame([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+    print(df.sum().sum_horizontal()[0])
 
             
 if __name__ == '__main__':
