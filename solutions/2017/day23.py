@@ -1,5 +1,5 @@
 import pathlib
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -14,8 +14,6 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day'))
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 DESCRIPTION = aoc.get_description(YEAR, DAY)
-
-EXAMPLE_PART_TWO = 'snd 1\nsnd 2\nsnd p\nrcv a\nrcv b\nrcv c\nrcv d'
 
 class NoValidFunction(Exception):
     pass
@@ -38,9 +36,9 @@ class Instruction:
 @dataclass
 class Computer:
     program: list[Instruction]
-    id: int = 0
+    debug_mode: bool = False
+    register_dict: defaultdict[str, int] = field(init=False)
     ptr: int = 0
-    register_dict: dict[str, int] = field(default_factory=dict)
     instructions_dict: dict[str, Callable] = field(
         default_factory=dict, repr=False)
     sounds_played: list[int] = field(default_factory=list)
@@ -50,33 +48,32 @@ class Computer:
     values_sent: int = 0
     part_two: bool = False
     awaiting_input: bool = False
+    num_mul_invocations: int = 0
 
     @property
     def last_sound_played(self) -> int:
         return self.sounds_played[-1]
 
     def __post_init__(self):
+        self.register_dict = defaultdict(int)
         self.instructions_dict: dict[str, Callable] = {
             'snd': self.snd,
             'set': self.set,
             'add': self.add,
+            'sub': self.sub,
             'mul': self.mul,
             'mod': self.mod,
             'rcv': self.rcv,
+            'jnz': self.jnz,
             'jgz': self.jgz
         }
-        if self.part_two:
-            self.output_queue = deque([1, 2, self.id])
-            self.set_register_value('p', self.id)
+        if self.debug_mode:
+            self.register_dict['a'] = 1
 
     def solve_part_one(self) -> int:
-        ''' The program exits when it tries to run an instruction 
-        beyond the ones defined. '''
         while self.ptr < len(self.program):
             self.execute_next_instruction()
-            if self.sound_recovered:
-                return self.last_sound_played
-        return -9999999
+        return self.num_mul_invocations
 
     def execute_next_instruction(self) -> None:
         if self.awaiting_input and not self.input_queue:
@@ -92,8 +89,8 @@ class Computer:
         except TypeError:
             print(f"Trying to execute {inst} at line {self.ptr}")
             raise
-        except NewOutput:
-            raise
+        if func == self.mul:
+            self.num_mul_invocations += 1
             
     def get_register_value(self, r: str) -> int:
         return self.register_dict.get(r, 0)
@@ -145,6 +142,14 @@ class Computer:
         self.set_register_value(x, y_value)
         self.ptr += 1
 
+    def sub(self, x: str, y: int) -> None:
+        ''' decreases register X by the value of Y '''
+        x_value = self.get_register_value(x)
+        y_value = y if isinstance(y, int) else self.get_register_value(y)
+        new_value = x_value - y_value
+        self.set_register_value(x, new_value)
+        self.ptr += 1
+
     def add(self, x: str, y: str|int) -> None:
         ''' increases register X by the value of Y '''
         x_value = self.get_register_value(x)
@@ -171,6 +176,17 @@ class Computer:
         new_value = x_value % y_value
         self.set_register_value(x, new_value)
         self.ptr += 1
+
+    def jnz(self, x: str|int, y: str|int):
+        ''' jumps with an offset of the value of Y, but only if the 
+        value of X is not zero. (An offset of 2 skips the next instruction, 
+        an offset of -1 jumps to the previous instruction, and so on.) '''
+        x_value = x if isinstance(x, int) else self.get_register_value(x)
+        y_value = y if isinstance(y, int) else self.get_register_value(y)
+        if x_value != 0:
+            self.ptr += y_value
+        else:
+            self.ptr += 1
         
     def jgz(self, x: str|int, y: str|int):
         ''' jumps with an offset of the value of Y, but only if the 
@@ -215,34 +231,18 @@ def part_one(data: str):
 
 def part_two(data: str):
     instruction_list = parse_data(data)
-    comp0 = Computer(instruction_list, id=0, part_two=True)
-    comp1 = Computer(instruction_list, id=1, part_two=True)
-
-    while True:
-        try:
-            comp0.execute_next_instruction()
-        except AwaitingInput:
-            pass
-        except NewOutput:
-            value = comp0.output_queue.pop()
-            comp1.input_queue.append(value)
-            
-        try:
-            comp1.execute_next_instruction()
-        except AwaitingInput:
-            pass
-        except NewOutput:
-            value = comp1.output_queue.pop()
-            comp0.input_queue.append(value)
-
-        if comp0.awaiting_input and comp1.awaiting_input:
-            return comp1.values_sent
+    computer = Computer(instruction_list, debug_mode=True)
+    return computer.solve_part_two()
         
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    # print(f"Part Two (input):  {part_two(INPUT)}")
+
+    random_tests()
+
+def random_tests():
+    ...
+        
        
 if __name__ == '__main__':
     main()
