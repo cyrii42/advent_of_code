@@ -34,6 +34,9 @@ class Instruction:
     v1: str|int
     v2: Optional[str|int] = None
 
+    def __repr__(self) -> str:
+        return f"{self.name} {self.v1} {self.v2}"
+
 @dataclass
 class Computer:
     program: list[Instruction]
@@ -82,20 +85,90 @@ class Computer:
         of completing before Santa needs that printer working.
 
         After setting register a to 1, if the program were to run to completion, 
-        what value would be left in register h?'''
+        what value would be left in register h?
+
+
+        NOTES:
+        - to end the program, G has to be 0
+        - which means G has to be 122700 (the seemingly constant value of C)
+        - 
+        - so, what happens to G during the program?
+            - lines:
+                00 set b 57          set B to 57
+                01 set c b           set C to 57
+                02 jnz a 2           jump 2 lines if A != 0
+                03 jnz 1 5           SKIPPED
+                04 mul b 100         multiply B by 100 (to 5700?)
+                05 sub b -100000     add 100_000 to B
+                06 set c b           set C to the value of B (always 105700?)
+                07 sub c -17000      add 17_000 to C 
+                08 set f 1           set F to 1
+                09 set d 2           set D to 2
+                10 set e 2           set E to 2
+                11 set g d           set G to the value of D (slowly increasing by 1)
+                12 mul g e           multiply G is multiplied by the value of E (fluctuating, not sure how)
+                13 sub g b           subtract the value of B (always 105700) from G
+                14 jnz g 2           jump forward 2 if G != 0
+                15 set f 0           SKIPPED, except when we're escaping the 11-19 loop
+                16 sub e -1          add 1 to E
+                17 set g e           set G to the value of E (fluctuating, not sure how)
+                18 sub g b           subtract the value of B (always 105700) from G
+                19 jnz g -8          jump back 8 lines if G != 0 (back to #11, "set g d")
+                20 sub d -1          add 1 to D
+                21 set g d           set G to the value of D (slowly increasing by 1)
+                22 sub g b           subtract the value of B (always 105700) from G
+                23 jnz g -13         jump back 13 lines if G != 0 (to #10, "set e 2")
+                24 jnz f 2           jump forward 2 if f != 0 (to #26, "set g b")
+                25 sub h -1          ***** add 1 to H ******
+                26 set g b           set G to the value of B (always 105700)
+                27 sub g c           subtract the value of C (always 122700) from G
+                28 jnz g 2           jump forward 2 lines if G != 0 (to #30, "sub b -17")
+                29 jnz 1 3           ***** jump 3 lines if 1 != 0 **** ****END PROGRAM*****
+                30 sub b -17         add 17 to B
+                31 jnz 1 -23         jump back 23 lines if 1 != 0 (to "#08, set f 1")
+
+        looks like it's looping #11 through #19:
+                11 set g d           set G to the value of D (slowly increasing by 1)
+                12 mul g e           multiply G is multiplied by the value of E (increasing by 1 every loop)
+                13 sub g b           subtract the value of B (always 105700) from G
+                14 jnz g 2           jump forward 2 if G != 0
+                SKIPPED
+                16 sub e -1          add 1 to E
+                17 set g e           set G to the value of E (increasing by 1 every loop)
+                18 sub g b           subtract the value of B (always 105700) from G
+                19 jnz g -8          jump back 8 lines if G != 0 (back to "set g d")
+        - eventually, after 845,594 instructions (105,700 loops?), G = 0
+        - so we go on to #20 (sub d -1), which adds 1 to D
+        - then #21 (set g d), which sets G to this newly incremented value of D
+        - then #22 (sub g b), which subtracts B (105,700) from G
+        - then #23 (jnz g -13), which jumps back to #10 (set e 2), and we start another 11-19 loop again
+        - SO:  in order for G to still be 0 at #23, D has to be 105,700 (the value of B)
+        - at that point, f != 0 (because we just escaped a 11-19 loop), which means we add 1 to H
+        - 
         
-        with alive_bar() as bar:
-            while self.ptr < len(self.program):
-                self.execute_next_instruction()
-                bar()
+
+
+        '''
+        
+        # while self.ptr < len(self.program):
+        for i in range(105700*8+100):
+            if i % 10000 == 0 or i > 800_000:
+                self.execute_next_instruction(print_info=True)
+            else:
+                self.execute_next_instruction(print_info=False)
+            if self.register_dict['g'] == 0:
+                print(f"Execution #{i+1}")
+            # if i % 100_000 == 0:
+            # print(self.register_dict)
         return self.register_dict['h']
 
-    def execute_next_instruction(self) -> None:
+    def execute_next_instruction(self, print_info: bool = False) -> None:
         if self.awaiting_input and not self.input_queue:
             raise AwaitingInput
         
         inst = self.program[self.ptr]
         func = self.get_instruction_func(inst.name)
+        pre_inst_ptr = self.ptr
         try:
             if inst.v1 is not None and inst.v2 is not None:
                 func(inst.v1, inst.v2)
@@ -106,6 +179,8 @@ class Computer:
             raise
         if func == self.mul:
             self.num_mul_invocations += 1
+        if print_info:
+            print(f"Ptr @ {pre_inst_ptr} - {inst} - {self.register_dict}")
             
     def get_register_value(self, r: str) -> int:
         return self.register_dict.get(r, 0)
@@ -250,7 +325,7 @@ def part_two(data: str):
     return computer.solve_part_two()
         
 def main():
-    print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
