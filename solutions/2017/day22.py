@@ -51,9 +51,9 @@ class Direction(IntEnum):
     LEFT = 3
 
 DIRECTION_DELTAS = {
-    Direction.UP: (1, 0),
+    Direction.UP: (-1, 0),
     Direction.RIGHT: (0, 1),
-    Direction.DOWN: (-1, 0),
+    Direction.DOWN: (1, 0),
     Direction.LEFT: (0, -1),
 }
 
@@ -129,16 +129,9 @@ class Cluster:
     
 def part_one(data: str):
     cluster = Cluster.from_data(data)
-    num_bursts = 7 if data == EXAMPLE else 10_000
-    # print(cluster)
-    print('INTIIAL STATE:')
-    cluster.print_cluster()
-    for i in range(num_bursts):
-        print(f"Move #{i+1}")
+    num_bursts = 70 if data == EXAMPLE else 10_000
+    for _ in range(num_bursts):
         cluster.execute_burst()
-        cluster.print_cluster()
-        # print(cluster.carrier_node)
-    # print(cluster)
     return cluster.num_infection_bursts
 
 def part_two(data: str):
@@ -148,15 +141,14 @@ def part_two(data: str):
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
 def random_tests():
-    direction = Direction.UP
-    print(Direction((direction - 1) % 4).name)
+    ...
     
 
        
