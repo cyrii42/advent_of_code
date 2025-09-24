@@ -62,8 +62,6 @@ class Cluster:
     node_list: list[Node]
     carrier_node: Node = field(init=False)
     carrier_dir: Direction = Direction.UP
-    # node_dict: dict[tuple[int, int], Node] = field(init=False, repr=False)
-    # graph: dict[tuple[int, int], list[Node]] = field(init=False, repr=False)
     num_infection_bursts: int = 0
 
     def print_cluster(self):
@@ -78,13 +76,7 @@ class Cluster:
         print()
 
     def __post_init__(self) -> None:
-        # self.node_dict = self.create_node_dict()
         self.carrier_node = self.get_node((0, 0))
-        # self.graph = self.create_graph()  # need to constantly recreate graph
-
-    # @property
-    # def carrier_node(self) -> Node:
-    #     return self.get_node(self.carrier_position)
 
     def get_node(self, coordinates: tuple[int, int]) -> Node:
         row, col = coordinates
@@ -93,39 +85,6 @@ class Cluster:
         except StopIteration:
             self.node_list.append((Node(row, col)))
             return next(n for n in self.node_list if n.row == row and n.col == col)
-        # try:
-        #     return self.node_dict[coordinates]
-        # except KeyError:
-        #     self.node_dict[coordinates] = Node(*coordinates, False)
-        #     # self.create_graph()
-        #     return self.node_dict[coordinates]
-
-    # def create_node_dict(self) -> dict[tuple[int, int], Node]:
-    #     node_dict = {}
-    #     for node in self.node_list:
-    #         node_dict[(node.row, node.col)] = node
-    #     return node_dict
-
-    # def create_graph(self) -> dict[tuple[int, int], list[Node]]:
-    #     output_dict: dict[tuple[int, int], list[Node]] = {}
-    #     recreate_dict = False
-        
-    #     for row, col in self.node_dict.keys():
-    #         neighbor_list = []
-    #         for dir in Direction:
-    #             delta_row, delta_col = DIRECTION_DELTAS[dir]
-    #             neighbor_row = row + delta_row
-    #             neighbor_col = col + delta_col
-    #             try:
-    #                 neighbor_list.append(self.node_dict[(neighbor_row, neighbor_col)])
-    #             except KeyError:
-    #                 self.node_list.append(Node(neighbor_row, neighbor_col, False))
-    #                 recreate_dict = True
-    #         output_dict[(row, col)] = neighbor_list
-    #     if recreate_dict:
-    #         self.create_node_dict()
-            
-    #     return output_dict
 
     def execute_burst(self) -> None:
         ''' 
