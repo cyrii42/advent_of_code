@@ -3,6 +3,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from alive_progress import alive_bar
 from rich import print
 
 import advent_of_code as aoc
@@ -74,6 +75,20 @@ class Computer:
         while self.ptr < len(self.program):
             self.execute_next_instruction()
         return self.num_mul_invocations
+
+    def solve_part_two(self) -> int:
+        ''' Whoever wrote this program obviously didn't choose a very efficient 
+        implementation. You'll need to optimize the program if it has any hope 
+        of completing before Santa needs that printer working.
+
+        After setting register a to 1, if the program were to run to completion, 
+        what value would be left in register h?'''
+        
+        with alive_bar() as bar:
+            while self.ptr < len(self.program):
+                self.execute_next_instruction()
+                bar()
+        return self.register_dict['h']
 
     def execute_next_instruction(self) -> None:
         if self.awaiting_input and not self.input_queue:
@@ -236,7 +251,7 @@ def part_two(data: str):
         
 def main():
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
