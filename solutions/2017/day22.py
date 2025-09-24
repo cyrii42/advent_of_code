@@ -1,24 +1,9 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from dataclasses import dataclass
+from enum import IntEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
+from typing import Self
 
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from alive_progress import alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -30,19 +15,11 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 
-@dataclass
-class Node:
-    row: int
-    col: int
-    infected: bool = False
-
-    @property
-    def char(self) -> str:
-        return '#' if self.infected else '.'
-
-    def __iter__(self):
-        for f in (self.row, self.col, self.infected):
-            yield f
+class NodeState(IntEnum):
+    CLEAN = 0
+    WEAKENED = 1
+    INFECTED = 2
+    FLAGGED = 3
 
 class Direction(IntEnum):
     UP = 0
@@ -59,73 +36,67 @@ DIRECTION_DELTAS = {
 
 @dataclass
 class Cluster:
-    node_list: list[Node]
-    carrier_node: Node = field(init=False)
+    node_dict: dict[tuple[int, int], NodeState] 
+    part_two: bool = False
+    carrier_pos: tuple[int, int] = (0, 0)
     carrier_dir: Direction = Direction.UP
     num_infection_bursts: int = 0
 
     def print_cluster(self):
-        min_row = min(n.row for n in self.node_list)
-        max_row = max(n.row for n in self.node_list)
+        min_row = min(n[0] for n in self.node_dict.keys())
+        max_row = max(n[0] for n in self.node_dict.keys())
+        min_col = min(n[1] for n in self.node_dict.keys())
+        max_col = max(n[1] for n in self.node_dict.keys())
+
+        def get_rowcol_state(row, col):
+            state = self.node_dict.get((row, col), NodeState.CLEAN)
+            return '#' if state == NodeState.INFECTED else '.'
 
         for row in range(min_row, max_row+1):
-            print(''.join(n.char for n in 
-                          (node for node in self.node_list if node.row == row)))
-        print(f"Carrier: {self.carrier_node.row}, {self.carrier_node.col} "
-              f"({self.carrier_node.infected}) ({self.carrier_dir.name})")
-        print()
-
-    def __post_init__(self) -> None:
-        self.carrier_node = self.get_node((0, 0))
-
-    def get_node(self, coordinates: tuple[int, int]) -> Node:
-        row, col = coordinates
-        try:
-            return next(n for n in self.node_list if n.row == row and n.col == col)
-        except StopIteration:
-            self.node_list.append((Node(row, col)))
-            return next(n for n in self.node_list if n.row == row and n.col == col)
+            print(''.join(get_rowcol_state(row, col) 
+                          for col in range(min_col, max_col+1)))
 
     def execute_burst(self) -> None:
-        ''' 
-        1. If the current node is infected, it turns to its right. Otherwise, 
-        it turns to its left. (Turning is done in-place; the current node does 
-        not change.)
+        current_state = self.node_dict.get(self.carrier_pos, NodeState.CLEAN)
+        match current_state:
+            case NodeState.INFECTED:
+                self.carrier_dir = Direction((self.carrier_dir + 1) % 4)  # turn right
+                if not self.part_two:
+                    self.node_dict[self.carrier_pos] = NodeState.CLEAN
+            case NodeState.CLEAN:
+                self.carrier_dir = Direction((self.carrier_dir - 1) % 4)  # turn left
+                if not self.part_two:
+                    self.node_dict[self.carrier_pos] = NodeState.INFECTED
+            case NodeState.WEAKENED:
+                pass                                                      # do not turn
+            case NodeState.FLAGGED:
+                self.carrier_dir = Direction((self.carrier_dir + 2) % 4)  # turn around
 
-        2. If the current node is clean, it becomes infected. Otherwise, 
-        it becomes cleaned. (This is done after the node is considered 
-        for the purposes of changing direction.)
-
-        3. The virus carrier moves forward one node in the direction it is facing.
-    '''
-        if self.carrier_node.infected:
-            self.carrier_dir = Direction((self.carrier_dir + 1) % 4)  # turn right
-            self.carrier_node.infected = False
-        else:
-            self.carrier_dir = Direction((self.carrier_dir - 1) % 4)  # turn left
-            self.carrier_node.infected = True
+        if self.part_two:
+            self.node_dict[self.carrier_pos] = NodeState((current_state + 1) % 4)
+            
+        if self.node_dict[self.carrier_pos] == NodeState.INFECTED:
             self.num_infection_bursts += 1
 
-        row, col, _ = self.carrier_node
+        row, col = self.carrier_pos
         delta_row, delta_col = DIRECTION_DELTAS[self.carrier_dir]
-        new_coordinates = (row+delta_row, col+delta_col)
-        self.carrier_node = self.get_node(new_coordinates)
+        self.carrier_pos = (row+delta_row, col+delta_col)
     
     @classmethod
-    def from_data(cls, data: str) -> Self:
+    def from_data(cls, data: str, part_two: bool = False) -> Self:
         line_list = data.splitlines()
         num_rows = len(line_list)
         num_cols = len(line_list[0])
-        center_row, center_col = (math.floor(num_rows/2), math.floor(num_cols/2))
+        center_row, center_col = (num_rows//2, num_cols//2)
 
-        node_list = []
+        node_dict = {}
         for i, row in enumerate(line_list):
             row_num = i - center_row
             for j, node_char in enumerate(row):
                 col_num = j - center_col
-                infected = True if node_char == '#' else False
-                node_list.append(Node(row_num, col_num, infected))
-        return cls(node_list)          
+                state = NodeState.INFECTED if node_char == '#' else NodeState.CLEAN
+                node_dict[(row_num, col_num)] = state
+        return cls(node_dict, part_two)          
     
 def part_one(data: str):
     cluster = Cluster.from_data(data)
@@ -135,22 +106,17 @@ def part_one(data: str):
     return cluster.num_infection_bursts
 
 def part_two(data: str):
-    cluster = Cluster.from_data(data)
-
-
+    cluster = Cluster.from_data(data, part_two=True)
+    num_bursts = 100 if data == EXAMPLE else 10_000_000
+    for _ in alive_it(range(num_bursts)):
+        cluster.execute_burst()
+    return cluster.num_infection_bursts
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-    
-
-       
 if __name__ == '__main__':
     main()
