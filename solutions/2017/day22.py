@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
@@ -21,6 +22,9 @@ class NodeState(IntEnum):
     INFECTED = 2
     FLAGGED = 3
 
+def clean_default():
+    return NodeState.CLEAN
+
 class Direction(IntEnum):
     UP = 0
     RIGHT = 1
@@ -36,7 +40,7 @@ DIRECTION_DELTAS = {
 
 @dataclass
 class Cluster:
-    node_dict: dict[tuple[int, int], NodeState] 
+    node_dict: defaultdict[tuple[int, int], NodeState] 
     part_two: bool = False
     carrier_pos: tuple[int, int] = (0, 0)
     carrier_dir: Direction = Direction.UP
@@ -57,7 +61,7 @@ class Cluster:
                           for col in range(min_col, max_col+1)))
 
     def execute_burst(self) -> None:
-        current_state = self.node_dict.get(self.carrier_pos, NodeState.CLEAN)
+        current_state = self.node_dict[self.carrier_pos]
         match current_state:
             case NodeState.INFECTED:
                 self.carrier_dir = Direction((self.carrier_dir + 1) % 4)  # turn right
@@ -89,7 +93,7 @@ class Cluster:
         num_cols = len(line_list[0])
         center_row, center_col = (num_rows//2, num_cols//2)
 
-        node_dict = {}
+        node_dict = defaultdict(clean_default)
         for i, row in enumerate(line_list):
             row_num = i - center_row
             for j, node_char in enumerate(row):
@@ -97,7 +101,7 @@ class Cluster:
                 state = NodeState.INFECTED if node_char == '#' else NodeState.CLEAN
                 node_dict[(row_num, col_num)] = state
         return cls(node_dict, part_two)          
-    
+
 def part_one(data: str):
     cluster = Cluster.from_data(data)
     num_bursts = 70 if data == EXAMPLE else 10_000
