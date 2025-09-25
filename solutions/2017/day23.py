@@ -3,7 +3,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
-from alive_progress import alive_bar
+import sympy
+from alive_progress import alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -128,14 +129,14 @@ class Computer:
                 31 jnz 1 -23         jump back 23 lines if 1 != 0 (to "#08, set f 1")
 
         looks like it's looping #11 through #19:
-                11 set g d           set G to the value of D (slowly increasing by 1)
-                12 mul g e           multiply G is multiplied by the value of E (increasing by 1 every loop)
-                13 sub g b           subtract the value of B (always 105700) from G
+                11 set g d           set G to the value of D (increasing by 1 every ESCAPED loop)
+                12 mul g e           multiply G by the value of E (increasing by 1 every loop)
+                13 sub g b           subtract the value of B (always 105,700) from G
                 14 jnz g 2           jump forward 2 if G != 0
-                SKIPPED
+                  15 set f 0       SKIPPED, except when we're escaping the 11-19 loop
                 16 sub e -1          add 1 to E
                 17 set g e           set G to the value of E (increasing by 1 every loop)
-                18 sub g b           subtract the value of B (always 105700) from G
+                18 sub g b           subtract the value of B (always 105,700) from G
                 19 jnz g -8          jump back 8 lines if G != 0 (back to "set g d")
         - eventually, after 845,594 instructions (105,700 loops?), G = 0
         - so we go on to #20 (sub d -1), which adds 1 to D
@@ -143,16 +144,50 @@ class Computer:
         - then #22 (sub g b), which subtracts B (105,700) from G
         - then #23 (jnz g -13), which jumps back to #10 (set e 2), and we start another 11-19 loop again
         - SO:  in order for G to still be 0 at #23, D has to be 105,700 (the value of B)
-        - at that point, f != 0 (because we just escaped a 11-19 loop), which means we add 1 to H
-        - 
+            - how long will it take for D to get to 105,700?
+            
+        - then #24 (jnz f 2), and now f != 0 (because we just escaped a 11-19 loop)
+        - then #25 (sub h -1) is finally not skipped, and we **add 1 to H**
+        - then #26 (set g b), which sets G to the value of B (105,700)
+        - then #27 (sub g c), which subtracts the value of C (122,700) from G (now it's -17,000)
+        - then #28 (jnz g 2), and now G != 0 so we JUMP 2 spots
+        - then #29 (jnz 1 3) is SKIPPED
+        - then #30 (sub b -17), which adds 17 to B
+            - so, after 1,000 times through #30, B equals 17,000 
+        - then #31 (jnz 1 -23), which JUMPS back 23 spots to #8
         
+        - then #08 (set f 1)
+        - then #09 (set d 2)
+        - then #10 (set e 2)
+        - ... then we start another #11-19 loop
+
+        - so:
+            - we need to go through the #11-19 loop 105,700 times to escape (105,700 * 8) (**845,600**)
+            - escaping the #11-19 loop increments D by 1 (at #20)
+            - we need to hit #20 (sub d -1) 105,700 times to get past #23 (845,600 * 105,700) (**89,379,920,000**)
+            - then we need to hit #30 (sub b -17) 1,000 times to get past #28 to #29, which ends the program
+
+        - potential plan:
+            - when we hit #11, immediately set E to 105,699
+            - when we hit #20, immediately set D to 105,699
+            - when we hit #30, immediately set B to 16,999
+
+        (1,000 is wrong answer - too low)
+        (8 is wrong answer)
 
 
         '''
+        i = 0
+        while self.ptr < len(self.program):
+            if i % 1_000_000 == 0:
+                self.execute_next_instruction(print_info=True)
+            else:
+                self.execute_next_instruction(print_info=False)
+            i += 1
+        return self.register_dict['h']
         
-        # while self.ptr < len(self.program):
-        for i in range(105700*8+100):
-            if i % 10000 == 0 or i > 800_000:
+        for i in range(105700*8+1):
+            if i % 10000 == 0 or i > 840_000:
                 self.execute_next_instruction(print_info=True)
             else:
                 self.execute_next_instruction(print_info=False)
@@ -169,6 +204,19 @@ class Computer:
         inst = self.program[self.ptr]
         func = self.get_instruction_func(inst.name)
         pre_inst_ptr = self.ptr
+
+        # if self.ptr == 14:
+        #     self.register_dict['g'] = 0
+        # if self.ptr == 16:
+        #     self.register_dict['e'] += 0
+
+        # if self.ptr == 2:
+            # self.register_dict['f'] = 0
+            # self.register_dict['d'] += 0
+
+        # if self.ptr == 30:
+        #     self.register_dict['b'] = 16_983
+
         try:
             if inst.v1 is not None and inst.v2 is not None:
                 func(inst.v1, inst.v2)
@@ -295,6 +343,8 @@ def parse_data(data: str) -> list[Instruction]:
 
     output_list = []
     for line in line_list:
+        if line.startswith('#'):
+            continue
         parts = line.split(' ')
         name = parts[0]
         v1 = parts[1]
@@ -313,20 +363,30 @@ def parse_data(data: str) -> list[Instruction]:
         else:
             output_list.append(Instruction(name, v1))
     return output_list
+
+def parse_data_part_two() -> list[Instruction]:
+    with open(aoc.DATA_DIR / '2017.23_modified_input.txt') as f:
+        line_list = [line for line in f.readlines()]
+        big_str = ''.join(line for line in line_list)
+    return parse_data(big_str)
     
 def part_one(data: str):
     instruction_list = parse_data(data)
     computer = Computer(instruction_list)
     return computer.solve_part_one()
 
-def part_two(data: str):
-    instruction_list = parse_data(data)
-    computer = Computer(instruction_list, debug_mode=True)
-    return computer.solve_part_two()
+def part_two():
+    ''' https://www.reddit.com/r/adventofcode/comments/1e6gybv/2017_day_23_part_2_clarifying_the_assembler/ '''
+    ans = 0
+    for x in alive_it(range(105_700, 122_701, 17)):
+        if not sympy.isprime(x):
+            ans += 1
+    return ans
         
 def main():
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (input):  {part_two()}")
 
     random_tests()
 
