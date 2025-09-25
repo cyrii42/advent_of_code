@@ -30,71 +30,71 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 
-@dataclass
-class Component:
+class Component(NamedTuple):
     port1: int
     port2: int
+    
+    def __repr__(self):
+        return f"{self.port1}/{self.port2}"
 
-    @property
-    def port_type_sum(self) -> int:
-        return self.port1 + self.port2
-
-def validate_connection(comp1: Component, comp2: Component):
-    comp2_ports = (comp2.port1, comp2.port2)
-    return (comp1.port1 in comp2_ports or comp1.port2 in comp2_ports)
+def get_strength(comp: Component) -> int:
+        return comp.port1 + comp.port2
 
 @dataclass
 class Bridge:
     component_list: list[Component]
 
-    def is_valid(self) -> bool:
-        if self.component_list[0].port1 != 0:
-            return False
-
-        i = 0
-        while i < len(self.component_list) - 1:
-            if not validate_connection(self.component_list[i], self.component_list[i+1]):
-                return False
-            i += 1
-
-        return True
-            
-        # return (
-        #     len(list(set(self.port_type_list))) <= len(self.component_list) + 1
-        #     and self.component_list[0].port1 == 0
-        # )
-
-    @property
-    def port_type_list(self) -> list[int]:
-        output_list = []
-        for comp in self.component_list:
-            output_list.append(comp.port1)
-            output_list.append(comp.port2)
-        return output_list
-    
     @property
     def strength(self) -> int:
-        return sum(comp.port_type_sum for comp in self.component_list)
+        return sum(get_strength(comp) for comp in self.component_list)
+
+def make_graph(component_list: list[Component]) -> dict[Component, list[Component]]:
+    output_dict = {}
+    for comp in component_list:
+        output_dict[comp] = [c for c in component_list 
+                                if c != comp
+                                and (
+                                    (c.port1 > 0 and c.port1 == comp.port1) 
+                                    or (c.port2 > 0 and c.port2 == comp.port2)
+                                    or (c.port1 > 0 and c.port1 == comp.port2)
+                                    or (c.port2 > 0 and c.port2 == comp.port1)
+                                )]
+    return output_dict
 
 def parse_data(data: str) -> list[Component]:
     line_list = data.splitlines()
     output_list = []
     for line in line_list:
-        num1, num2 = line.split('/')
-        output_list.append(Component(int(num1), int(num2)))
+        port1, port2 = [int(x) for x in line.split('/')]
+        output_list.append(Component(port1, port2))
     return output_list
+
+def make_component_dict(component_list: list[Component]) -> dict[Component, tuple[bool, bool]]:
+    return {comp: (False, False) for comp in component_list}
+
+def find_strongest_bridge(graph: dict[Component, list[Component]],
+                          parent: Component,
+                          visited: Optional[list[Component]] = None) -> list[Component]:
+    if visited is None:
+        visited = []
+        
+    visited.append(parent)
+    # print(f"{parent}: {graph[parent]}")
+    for child in graph[parent]:
+        if child not in visited:
+            find_strongest_bridge(graph, child, visited)
+            
+    return visited
     
 def part_one(data: str):
     component_list = parse_data(data)
-    combos = (itertools.combinations(component_list, x) for x in range(2, len(component_list)+1))
-    combinations = itertools.chain(*combos)
-    winner = None
-    for combo in combinations:
-        print(combo)
-        bridge = Bridge(list(combo))
-        if bridge.is_valid() and winner is None or bridge.strength > winner.strength:
-            winner = bridge
-    return winner
+    graph = make_graph(component_list)
+    potential_starts = [comp for comp in component_list if comp.port1 == 0 or comp.port2 == 0]
+
+    print(find_strongest_bridge(graph, potential_starts[0]))
+
+    # valid_bridges = find_valid_bridges(graph)
+    # return max(bridge.strength for bridge in valid_bridges)
         
 
 def part_two(data: str):
