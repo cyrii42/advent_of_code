@@ -21,6 +21,7 @@ dependencies = [
     "requests>=2.32.4",
     "rich>=14.0.0",
     "sqlalchemy>=2.0.41",
+    "sympy>=1.14.0",
     "typer>=0.16.0",
 ]
 
