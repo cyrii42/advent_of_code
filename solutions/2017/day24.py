@@ -30,83 +30,135 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 
+@dataclass(frozen=True)
+class Port:
+    comp_id: int
+    type: int
+    
+
+    def __add__(self, other) -> int:
+        if not isinstance(other, Port):
+            raise TypeError
+        return self.type + other.type
+
 class Component(NamedTuple):
-    port1: int
-    port2: int
+    id: int
+    port1: Port
+    port2: Port
     
     def __repr__(self):
-        return f"{self.port1}/{self.port2}"
-
-def get_strength(comp: Component) -> int:
-        return comp.port1 + comp.port2
-
-@dataclass
-class Bridge:
-    component_list: list[Component]
+        return f"{self.port1.type}/{self.port2.type}"
 
     @property
     def strength(self) -> int:
-        return sum(get_strength(comp) for comp in self.component_list)
+        return self.port1.type + self.port2.type
 
-def make_graph(component_list: list[Component]) -> dict[Component, list[Component]]:
-    output_dict = {}
-    for comp in component_list:
-        output_dict[comp] = [c for c in component_list 
-                                if c != comp
-                                and (
-                                    (c.port1 > 0 and c.port1 == comp.port1) 
-                                    or (c.port2 > 0 and c.port2 == comp.port2)
-                                    or (c.port1 > 0 and c.port1 == comp.port2)
-                                    or (c.port2 > 0 and c.port2 == comp.port1)
-                                )]
-    return output_dict
+# def make_graph(port_list: list[Port]) -> dict[Port, list[Port]]:
+#     output_dict = {}
+#     for port in port_list:
+#         output_dict[port] = [p for p in port_list
+#                              if p.type > 0
+#                              and p.type == port.type
+#                              and p.comp_id != port.comp_id]
+#     return output_dict
 
-def parse_data(data: str) -> list[Component]:
-    line_list = data.splitlines()
-    output_list = []
-    for line in line_list:
-        port1, port2 = [int(x) for x in line.split('/')]
-        output_list.append(Component(port1, port2))
-    return output_list
+# def make_graph(component_list: list[Component]
+#                ) -> dict[Component, list[Component]]:
+#     output_dict = {}
+#     for comp in component_list:
+#         output_dict[comp] = [c for c in component_list 
+#                                 if c != comp
+#                                 and (
+#                                     (c.port1.type > 0 and c.port1.type == comp.port1.type) 
+#                                     or (c.port2.type > 0 and c.port2.type == comp.port2.type)
+#                                     or (c.port1.type > 0 and c.port1.type == comp.port2.type)
+#                                     or (c.port2.type > 0 and c.port2.type == comp.port1.type)
+#                                 )]
+#     return output_dict
 
-def make_component_dict(component_list: list[Component]) -> dict[Component, tuple[bool, bool]]:
-    return {comp: (False, False) for comp in component_list}
+
 
 def find_strongest_bridge(graph: dict[Component, list[Component]],
                           parent: Component,
-                          visited: Optional[list[Component]] = None) -> list[Component]:
+                          visited: Optional[list[Component]] = None,
+                          used_ports: Optional[list[Port]] = None
+                          ) -> list[Component]:
     if visited is None:
-        visited = []
+        visited = [parent]
+    else:
+        visited.append(parent)
         
-    visited.append(parent)
-    # print(f"{parent}: {graph[parent]}")
+    if used_ports is None:
+        used_ports = [p for p in (parent.port1, parent.port2) 
+                      if p.type == 0]
+        unused_ports = [p for comp in visited for p in comp if p not in used_ports]
+        print(unused_ports)
+    else:
+        unused_ports = [p for comp in visited for p in comp if p not in used_ports]
+        used_ports += [p for p in (parent.port1, parent.port2) 
+                       if p.type == unused_ports[-1]]
+        
     for child in graph[parent]:
         if child not in visited:
-            find_strongest_bridge(graph, child, visited)
+            if ((parent.port1 in unused_ports and 
+                 ((child.port1 == parent.port1) or child.port2 == parent.port1))
+            or (parent.port2 in unused_ports and 
+                 ((child.port1 == parent.port2) or child.port2 == parent.port2))):
+                find_strongest_bridge(graph, child, visited, used_ports)
             
     return visited
+
+def parse_data(data: str) -> defaultdict[int, set[int]]:
+    ''' https://www.reddit.com/r/adventofcode/comments/7lte5z/comment/droveqk/'''
+    # line_list = data.splitlines()
+    # output_list = []
+    # for comp_id, line in enumerate(line_list):
+    #     type1, type2 = [int(x) for x in line.split('/')]
+    #     port1 = Port(comp_id, type1)
+    #     port2 = Port(comp_id, type2)
+    #     output_list.append(Component(comp_id, port1, port2))
+    # return output_list
+    components = defaultdict(set)
+    for line in data.strip().splitlines():
+        a, b = [int(x) for x in line.split('/')]
+        components[a].add(b)
+        components[b].add(a)
+    return components
+
+def gen_bridges(bridge, components):
+    ''' https://www.reddit.com/r/adventofcode/comments/7lte5z/comment/droveqk/ '''
+    bridge = bridge or [(0, 0)]
+    cur = bridge[-1][1]
+    for b in components[cur]:
+        if not ((cur, b) in bridge or (b, cur) in bridge):
+            new = bridge+[(cur, b)]
+            yield new
+            yield from gen_bridges(new, components)
     
 def part_one(data: str):
-    component_list = parse_data(data)
-    graph = make_graph(component_list)
-    potential_starts = [comp for comp in component_list if comp.port1 == 0 or comp.port2 == 0]
-
-    print(find_strongest_bridge(graph, potential_starts[0]))
-
-    # valid_bridges = find_valid_bridges(graph)
-    # return max(bridge.strength for bridge in valid_bridges)
+    ''' https://www.reddit.com/r/adventofcode/comments/7lte5z/comment/droveqk/ '''
+    graph = parse_data(data)
+    mx = []
+    for bridge in gen_bridges(None, graph):
+        mx.append((len(bridge), sum(a+b for a, b in bridge)))
+    return sorted(mx, key=lambda x: x[1])[-1][1]
         
 
 def part_two(data: str):
-    __ = parse_data(data)
+    ''' https://www.reddit.com/r/adventofcode/comments/7lte5z/comment/droveqk/ '''
+    graph = parse_data(data)
+    mx = []
+    for bridge in gen_bridges(None, graph):
+        mx.append((len(bridge), sum(a+b for a, b in bridge)))
+    return sorted(mx)[-1][1]
 
 
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
