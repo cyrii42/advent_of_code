@@ -177,18 +177,38 @@ def part_two(data: str):
     calculate the number of each type of 3x3 block I'll have 3 iterations later.'''
     
     art_generator = ArtGenerator(data)
-    # num_iterations = 6 if data == EXAMPLE else 5
-    # for _ in range(num_iterations):
-    #     art_generator.enhance_image()
-    # print(art_generator.extract_3_x_3_blocks())
+    num_iterations = 2 if data == EXAMPLE else 9
+    for _ in range(num_iterations):
+        art_generator.enhance_image()
     # print(art_generator.image)
+    block_list = art_generator.extract_3_x_3_blocks()
+
+    d = defaultdict(int)
+    for block in block_list:
+        d[make_block_hash(block)] += 1
+    print(d)
+
+    
+class Not3x3(Exception):
+    pass
+
+def make_block_hash(block: np.ndarray) -> tuple[tuple[int, int, int], ...]:
+    block_list = block.tolist()
+    if len(block_list) != 3 or any(len(x) != 3 for x in block_list):
+        raise Not3x3
+
+    block1, block2, block3 = block_list  
+    return (tuple(block1), tuple(block2), tuple(block3))
+    
+        
+    
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (example):  {part_one(EXAMPLE)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
