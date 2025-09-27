@@ -32,54 +32,40 @@ INPUT = aoc.get_input(YEAR, DAY)
 
 START = np.array([[0, 1, 0],
                   [0, 0, 1],
-                  [1, 1, 1]])
-# START = np.rot90(START, k=3)
-
-# START = np.array([[1, 1, 0, 1, 1, 0],
-#                   [1, 0, 0, 1, 0, 0], 
-#                   [0, 0, 0, 0, 0 ,0],
-#                   [1, 1, 0, 1, 1, 0],
-#                   [1, 0, 0, 1, 0, 0],
-#                   [0, 0, 0, 0, 0, 0]]) 
-                  
+                  [1, 1, 1]])  
 
 class EnhancementFailed(Exception):
+    pass
+
+class NotDivisible(Exception):
     pass
 
 @dataclass
 class Rule:
     input: np.ndarray
     output: np.ndarray
-    potential_inputs: list[np.ndarray] = field(init=False, repr=False)
-
-    def __post_init__(self):
-        self.potential_inputs = self.create_potential_inputs_list()
-
-    def create_potential_inputs_list(self) -> list[np.ndarray]:
-        return [
-                self.input.copy(),
-                np.flip(self.input.copy()),
-                np.fliplr(self.input.copy()),
-                np.rot90(self.input.copy(), k=1),
-                np.flip(np.rot90(self.input.copy(), k=1)),
-                np.fliplr(np.rot90(self.input.copy(), k=1)),
-                np.rot90(self.input.copy(), k=2),
-                np.flip(np.rot90(self.input.copy(), k=2)),
-                np.fliplr(np.rot90(self.input.copy(), k=2)),
-                np.rot90(self.input.copy(), k=3),
-                np.flip(np.rot90(self.input.copy(), k=3)),
-                np.fliplr(np.rot90(self.input.copy(), k=3))
-            ]
 
     def check_input(self, input_image: np.ndarray) -> bool:
         if input_image.shape[0] != self.input.shape[0]:
             return False
 
-        return any(np.array_equal(test, self.input)
-                   for test in self.potential_inputs)
+        return (
+            np.array_equal(input_image, self.input) 
+            or np.array_equal(np.flipud(input_image), self.input)
+            or np.array_equal(np.fliplr(input_image), self.input)
+            
+            or np.array_equal(np.rot90(input_image, k=1), self.input)
+            or np.array_equal(np.flipud(np.rot90(input_image, k=1)), self.input)
+            or np.array_equal(np.fliplr(np.rot90(input_image, k=1)), self.input)
+            
+            or np.array_equal(np.rot90(input_image, k=2), self.input)
+            or np.array_equal(np.flipud(np.rot90(input_image, k=2)), self.input)
+            or np.array_equal(np.fliplr(np.rot90(input_image, k=2)), self.input)
 
-    def to_dict(self) -> dict[bytes, np.ndarray]:
-        return {test.tobytes(): self.output for test in self.potential_inputs}
+            or np.array_equal(np.rot90(input_image, k=3), self.input)
+            or np.array_equal(np.flipud(np.rot90(input_image, k=3)), self.input)
+            or np.array_equal(np.fliplr(np.rot90(input_image, k=3)), self.input)
+        )
 
     def __repr__(self) -> str:
         return self.input.__str__() + ' => \n' + self.output.__str__()
@@ -174,13 +160,6 @@ def parse_data(data: str) -> list[Rule]:
         output_list.append(Rule(start, end))
     return output_list
 
-class NotDivisible(Exception):
-    pass
-
-
-
-    
-
 def part_one(data: str):
     art_generator = ArtGenerator(data)
     num_iterations = 2 if data == EXAMPLE else 5
@@ -196,22 +175,13 @@ def part_two(data: str):
     futures can all be calculated independently. Using this fact I just keep track of 
     how many of each "type" of 3x3 block I have at each stage, and can thus easily 
     calculate the number of each type of 3x3 block I'll have 3 iterations later.'''
-
-    '''
-    OTHER IDEA:
-    - there are only so many rules; maybe, instead of actually reconstructing the 
-    picture each time, you just have a dictionary that keeps a running tally of 
-    how many of each output type there are
-        - but then how do you make the NEXT image?
-        - 
-
-    '''
+    
     art_generator = ArtGenerator(data)
-    num_iterations = 6 if data == EXAMPLE else 5
-    for _ in range(num_iterations):
-        art_generator.enhance_image()
-    print(art_generator.extract_3_x_3_blocks())
-    print(art_generator.image)
+    # num_iterations = 6 if data == EXAMPLE else 5
+    # for _ in range(num_iterations):
+    #     art_generator.enhance_image()
+    # print(art_generator.extract_3_x_3_blocks())
+    # print(art_generator.image)
 
 
 def main():
