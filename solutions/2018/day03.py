@@ -1,24 +1,7 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from dataclasses import dataclass
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
+from typing import NamedTuple
 
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -35,8 +18,8 @@ class Point(NamedTuple):
     col: int
 
 @dataclass
-class Rectangle:
-    claim_id: int
+class Claim:
+    id: int
     inches_from_left: int
     inches_from_top: int
     width: int
@@ -54,20 +37,22 @@ class Rectangle:
                 output_list.append(Point(pt_row, pt_col))
         return output_list
 
-def make_rectangle_dict(rectangle_list: list[Rectangle]
+def make_claim_dict(claim_list: list[Claim]
                         ) -> dict[int, list[Point]]:
-    return {rect.claim_id: rect.get_coordinates() for rect in rectangle_list}
+    return {claim.id: claim.get_coordinates() for claim in claim_list}
 
-def count_overlaps(rectangle_dict: dict[int, list[Point]]) -> int:
-    raw_count = sum(len(v) for v in rectangle_dict.values())
+def find_overlaps(claim_dict: dict[int, list[Point]]) -> set[Point]:
+    points_seen = set()
+    repeated_points = set()
+    for point_list in claim_dict.values():
+        for point in point_list:
+            if point in points_seen:
+                repeated_points.add(point)
+            else:
+                points_seen.add(point)
+    return repeated_points
 
-    point_set = set()
-    for point_list in rectangle_dict.values():
-        point_set.update({p for p in point_list})
-
-    return raw_count - len(point_set)   
-
-def parse_data(data: str) -> list[Rectangle]:
+def parse_data(data: str) -> list[Claim]:
     line_list = data.splitlines()
     output_list = []
     for line in line_list:
@@ -76,29 +61,29 @@ def parse_data(data: str) -> list[Rectangle]:
         inches_from_left, inches_from_top = (
             [int(x) for x in inches.removesuffix(':').split(',')])
         width, height = [int(x) for x in rect.split('x')]
-        output_list.append(Rectangle(id, inches_from_left, 
+        output_list.append(Claim(id, inches_from_left, 
                                      inches_from_top, width, height))
     return output_list
-    
+
 def part_one(data: str):
-    rectangle_list = parse_data(data)
-    rectangle_dict = make_rectangle_dict(rectangle_list)
-    return count_overlaps(rectangle_dict)
+    claim_list = parse_data(data)
+    claim_dict = make_claim_dict(claim_list)
+    repeated_points = find_overlaps(claim_dict)
+    return len(repeated_points)  
 
 def part_two(data: str):
-    ...
+    claim_list = parse_data(data)
+    claim_dict = make_claim_dict(claim_list)
+    repeated_points = find_overlaps(claim_dict)
+    for claim_id, points_list in claim_dict.items():
+        if not any(p in repeated_points for p in points_list):
+            return claim_id
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-
-       
 if __name__ == '__main__':
     main()
