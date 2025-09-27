@@ -41,7 +41,7 @@ def make_claim_dict(claim_list: list[Claim]
                         ) -> dict[int, list[Point]]:
     return {claim.id: claim.get_coordinates() for claim in claim_list}
 
-def find_overlaps(claim_dict: dict[int, list[Point]]) -> set[Point]:
+def find_repeated_points(claim_dict: dict[int, list[Point]]) -> set[Point]:
     points_seen = set()
     repeated_points = set()
     for point_list in claim_dict.values():
@@ -68,13 +68,13 @@ def parse_data(data: str) -> list[Claim]:
 def part_one(data: str):
     claim_list = parse_data(data)
     claim_dict = make_claim_dict(claim_list)
-    repeated_points = find_overlaps(claim_dict)
+    repeated_points = find_repeated_points(claim_dict)
     return len(repeated_points)  
 
 def part_two(data: str):
     claim_list = parse_data(data)
     claim_dict = make_claim_dict(claim_list)
-    repeated_points = find_overlaps(claim_dict)
+    repeated_points = find_repeated_points(claim_dict)
     for claim_id, points_list in claim_dict.items():
         if not any(p in repeated_points for p in points_list):
             return claim_id
