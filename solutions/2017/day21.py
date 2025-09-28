@@ -1,24 +1,11 @@
-import functools
-import hashlib
 import itertools
-import json
 import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
+from typing import Optional
 
 import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -40,6 +27,9 @@ class EnhancementFailed(Exception):
 class NotDivisible(Exception):
     pass
 
+class Not3x3(Exception):
+    pass
+
 @dataclass
 class Rule:
     input: np.ndarray
@@ -49,8 +39,7 @@ class Rule:
         if input_image.shape[0] != self.input.shape[0]:
             return False
 
-        return (
-            np.array_equal(input_image, self.input) 
+        return (np.array_equal(input_image, self.input) 
             or np.array_equal(np.flipud(input_image), self.input)
             or np.array_equal(np.fliplr(input_image), self.input)
             
@@ -64,21 +53,15 @@ class Rule:
 
             or np.array_equal(np.rot90(input_image, k=3), self.input)
             or np.array_equal(np.flipud(np.rot90(input_image, k=3)), self.input)
-            or np.array_equal(np.fliplr(np.rot90(input_image, k=3)), self.input)
-        )
+            or np.array_equal(np.fliplr(np.rot90(input_image, k=3)), self.input))
 
     def __repr__(self) -> str:
         return self.input.__str__() + ' => \n' + self.output.__str__()
 
 @dataclass
 class ArtGenerator:
-    data: str
-    image: np.ndarray = field(init=False)
-    ruleset: list[Rule] = field(init=False)
-
-    def __post_init__(self) -> None:
-        self.image = START
-        self.ruleset = parse_data(self.data)
+    ruleset: list[Rule]
+    image: np.ndarray
 
     def __repr__(self) -> str:
         return self.image.__str__()
@@ -95,23 +78,25 @@ class ArtGenerator:
     def enhance_image(self) -> None:
         # if image size = 3, we only have one sub-image, so enhance it and return
         if self.image_size == 3:
-            self.image = self._enhance_subimage(self.image)
+            self.image = self._enhance_subimage(self.image, self.ruleset)
             return
 
         # otherwise, break the pixels up into 2x2 or 3x3 squares
         subimage_list = self._extract_subimages()
 
         # then enhance each sub-image
-        enhanced_subimages = [self._enhance_subimage(si) for si in subimage_list]
+        enhanced_subimages = [self._enhance_subimage(si, self.ruleset) for si in subimage_list]
 
         # then stitch the sub-images back together
         self.image = self._merge_enhanced_subimages(enhanced_subimages)
 
-    def _extract_subimages(self) -> list[np.ndarray]:
-        subimage_size = 2 if self.image_size % 2 == 0 else 3
+    def _extract_subimages(self, image: Optional[np.ndarray] = None) -> list[np.ndarray]:
+        if not image:
+            image = self.image
+        subimage_size = 2 if image.shape[0] % 2 == 0 else 3
         
         slices = [(0+(i*subimage_size),subimage_size+(i*subimage_size))
-                  for i in range(self.image_size // subimage_size)]
+                  for i in range(image.shape[0] // subimage_size)]
         
         output_list = []
         for pair in itertools.product(slices, repeat=2):
@@ -120,13 +105,17 @@ class ArtGenerator:
             output_list.append(image_copy[s1[0]:s1[1], s2[0]:s2[1]])
         return output_list
 
-    def _enhance_subimage(self, subimage: np.ndarray) -> np.ndarray:
-        for rule in self.ruleset:
+    @staticmethod
+    def _enhance_subimage(subimage: np.ndarray,
+                          ruleset: list[Rule]
+                          ) -> np.ndarray:
+        for rule in ruleset:
             if rule.check_input(subimage):
                 return rule.output
         raise EnhancementFailed(subimage)
 
-    def _merge_enhanced_subimages(self, subimage_list: list[np.ndarray]) -> np.ndarray:
+    @staticmethod
+    def _merge_enhanced_subimages(subimage_list: list[np.ndarray]) -> np.ndarray:
         num_subimages = len(subimage_list)
         subimages_per_row = math.isqrt(num_subimages)
         num_rows = subimages_per_row
@@ -139,14 +128,15 @@ class ArtGenerator:
 
         return np.concatenate([row for row in row_list], axis=0)    
 
-    def extract_3_x_3_blocks(self) -> list[np.ndarray]:
-        if self.image_size % 3 != 0:
-            raise NotDivisible   
-        output_list = []
-        for row in range(0, self.image_size, 3):
-            for col in range(0, self.image_size, 3):
-                output_list.append(self.image[row:row+3, col:col+3])
-        return output_list
+def extract_3_x_3_blocks(image: np.ndarray) -> list[np.ndarray]:
+    image_size = image.shape[0]
+    if image_size % 3 != 0:
+        raise NotDivisible   
+    output_list = []
+    for row in range(0, image_size, 3):
+        for col in range(0, image_size, 3):
+            output_list.append(image[row:row+3, col:col+3])
+    return output_list
 
 def parse_data(data: str) -> list[Rule]:
     line_list = data.splitlines()
@@ -160,13 +150,26 @@ def parse_data(data: str) -> list[Rule]:
         output_list.append(Rule(start, end))
     return output_list
 
-def part_one(data: str):
-    art_generator = ArtGenerator(data)
-    num_iterations = 2 if data == EXAMPLE else 5
+def part_one(data: str, 
+             start_image: np.ndarray = START,
+             num_iterations: int = 5):
+    ruleset = parse_data(data)
+    art_generator = ArtGenerator(ruleset, start_image)
     for _ in range(num_iterations):
         art_generator.enhance_image()
-    print(art_generator.image)
     return art_generator.num_pixels_on
+
+@dataclass(frozen=True)
+class BlockHash:
+    b1: tuple[int, int, int]
+    b2: tuple[int, int, int]
+    b3: tuple[int, int, int]
+
+    def __repr__(self) -> str:
+        return f"({self.b1}, {self.b2}, {self.b3})"
+
+    def to_numpy(self) -> np.ndarray:
+        return np.array([self.b1, self.b2, self.b3])
 
 def part_two(data: str):
     ''' https://www.reddit.com/r/adventofcode/comments/7l78eb/comment/drk8j2m/
@@ -175,46 +178,76 @@ def part_two(data: str):
     futures can all be calculated independently. Using this fact I just keep track of 
     how many of each "type" of 3x3 block I have at each stage, and can thus easily 
     calculate the number of each type of 3x3 block I'll have 3 iterations later.'''
-    
-    art_generator = ArtGenerator(data)
-    num_iterations = 2 if data == EXAMPLE else 9
-    for _ in range(num_iterations):
+
+    ruleset = parse_data(data)
+    art_generator = ArtGenerator(ruleset, START)
+    for _ in range(3):
         art_generator.enhance_image()
-    # print(art_generator.image)
-    block_list = art_generator.extract_3_x_3_blocks()
 
-    d = defaultdict(int)
-    for block in block_list:
-        d[make_block_hash(block)] += 1
-    print(d)
+    block_list = extract_3_x_3_blocks(art_generator.image)
+    block_count_dict = make_block_count_dict(block_list)
+    block_result_dict = make_block_result_dict(block_list, data)
 
-    
-class Not3x3(Exception):
-    pass
+    three_iterations_dict = make_three_iterations_dict(block_list, ruleset)
 
-def make_block_hash(block: np.ndarray) -> tuple[tuple[int, int, int], ...]:
+    for _ in range(4):
+        new_block_count_dict = defaultdict(int)
+        for block_hash, count in block_count_dict.items():
+            next_round_dict = three_iterations_dict[block_hash]
+            for next_round_block_hash, next_round_count in next_round_dict.items():
+                new_block_count_dict[next_round_block_hash] += next_round_count * count
+        block_count_dict = new_block_count_dict
+
+    answer = 0
+    for block, pixels_per_block in block_result_dict.items():
+        num_blocks = block_count_dict[block]
+        answer += num_blocks * pixels_per_block
+    return answer
+
+def make_three_iterations_dict(block_list: list[np.ndarray],
+                               ruleset: list[Rule]
+                               ) -> dict[BlockHash, dict[BlockHash, int]]:
+    ''' Returns a dictionary of dictionaries'''
+    block_hash_set = {make_block_hash(block) for block in block_list}
+    output_dict = {}
+    for block_hash in block_hash_set:
+        output_dict[block_hash] = run_three_iterations(block_hash.to_numpy(), ruleset)
+    return output_dict
+
+def run_three_iterations(block: np.ndarray, ruleset: list[Rule]
+                         ) -> dict[BlockHash, int]:
+    art_generator = ArtGenerator(ruleset, block)
+    for _ in range(3):
+        art_generator.enhance_image()
+    block_list = extract_3_x_3_blocks(art_generator.image)
+    block_count_dict = make_block_count_dict(block_list)
+    return block_count_dict
+
+def make_block_hash(block: np.ndarray) -> BlockHash:
     block_list = block.tolist()
-    if len(block_list) != 3 or any(len(x) != 3 for x in block_list):
-        raise Not3x3
+    assert len(block_list) == 3 and all(len(x) == 3 for x in block_list)
 
     block1, block2, block3 = block_list  
-    return (tuple(block1), tuple(block2), tuple(block3))
-    
-        
-    
+    return BlockHash(tuple(block1), tuple(block2), tuple(block3))
 
+def make_block_count_dict(block_list: list[np.ndarray]) -> dict[BlockHash, int]:
+    output_dict = defaultdict(int)
+    for block in block_list:
+        output_dict[make_block_hash(block)] += 1
+    return output_dict
+    
+def make_block_result_dict(block_list: list[np.ndarray], data: str
+                           ) -> dict[BlockHash, int]:
+    output_dict = {}
+    for block in block_list:
+        block_hash = make_block_hash(block)
+        output_dict[block_hash] = int(part_one(data, block, 3))
+    return output_dict
 
 def main():
-    # print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part One (example):  {part_one(EXAMPLE, num_iterations=2)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-
-            
 if __name__ == '__main__':
     main()
