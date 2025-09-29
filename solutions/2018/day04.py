@@ -45,10 +45,14 @@ class Event(NamedTuple):
     ts: dt.datetime
     event_type: EventType
 
+    def __repr__(self) -> str:
+        return (f"#{self.guard_id} ({self.ts.strftime('%Y-%m-%d %H:%M')}) " + 
+                f"({self.event_type.name})")
+
 @dataclass
 class Guard:
     id: int
-    event_dict: dict[dt.datetime, EventType] = field(repr=False)
+    event_list: list[Event] = field(repr=False)
     minutes_asleep: int = field(init=False)
     tick_tock_dict: dict[dt.datetime, WakefulnessState] = field(init=False, repr=False)
     sleepiest_minute: int = field(init=False)
@@ -60,10 +64,10 @@ class Guard:
             self.sleepiest_minute = self.get_sleepiest_minute()
         
     def get_total_time_asleep(self) -> int:
-        sleeps = [ts for ts, event_type in self.event_dict.items()
-                  if event_type == EventType.SLEEP]
-        wakeups = [ts for ts, event_type in self.event_dict.items()
-                   if event_type == EventType.WAKE]
+        sleeps = [event.ts for event in self.event_list
+                  if event.event_type == EventType.SLEEP]
+        wakeups = [event.ts for event in self.event_list
+                  if event.event_type == EventType.WAKE]
 
         total = 0
         for sleep, wake in zip(sleeps, wakeups):
@@ -73,18 +77,19 @@ class Guard:
     def make_tick_tock_dict(self) -> dict[dt.datetime, WakefulnessState]:
         output_dict = {}
         current_state = WakefulnessState.AWAKE
-        sorted_event_dict = sorted(self.event_dict)
-        for i, ts in enumerate(sorted_event_dict):
-            if i >= len(self.event_dict) - 1:
+        sorted_event_list = sorted(self.event_list, key=lambda x: x.ts)
+        for i, event in enumerate(sorted_event_list):
+            if i >= len(sorted_event_list) - 1:
                 break
-            match self.event_dict[ts]:
+            match event.event_type:
                 case EventType.START | EventType.WAKE:
                     current_state = WakefulnessState.AWAKE
                 case EventType.SLEEP:
                     current_state = WakefulnessState.ASLEEP
-            min_range = sorted_event_dict[i+1].minute - ts.minute
-            for x in range(min_range+1):
-                output_dict[ts + dt.timedelta(minutes=x)] = current_state
+            if event.ts.hour == 0:
+                min_range = sorted_event_list[i+1].ts.minute - event.ts.minute
+                for x in range(min_range+1):
+                    output_dict[event.ts + dt.timedelta(minutes=x)] = current_state
         return output_dict
 
     def get_sleepiest_minute(self) -> int:
@@ -92,7 +97,10 @@ class Guard:
         for ts, state in self.tick_tock_dict.items():
             if state == WakefulnessState.ASLEEP:
                 output_dict[ts.minute] += 1
-        sorted_list = sorted(output_dict.items(), key=lambda x: x[1], reverse=True)
+        if self.id == 2917:
+            print(output_dict)
+        sorted_list = sorted(output_dict.items(), 
+                             key=lambda x: x[1], reverse=True)
         return sorted_list[0][0]
 
 def make_guards(event_list: list[Event]) -> list[Guard]:
@@ -100,8 +108,7 @@ def make_guards(event_list: list[Event]) -> list[Guard]:
     guard_list = []
     for guard_id in all_guard_ids:
         events = [event for event in event_list if event.guard_id == guard_id]
-        event_dict = {event.ts: event.event_type for event in events}
-        guard_list.append(Guard(guard_id, event_dict))
+        guard_list.append(Guard(guard_id, events))
     return guard_list
 
 def parse_data(data: str) -> list[Event]:
@@ -133,10 +140,12 @@ def parse_data(data: str) -> list[Event]:
 def part_one(data: str):
     event_list = parse_data(data)
     guard_list = make_guards(event_list)
-    print(guard_list)
     guard_list = sorted(guard_list, key=lambda g: g.minutes_asleep, reverse=True)
+    print(guard_list)
     sleepiest_guard = guard_list[0]
+    print(sleepiest_guard)
     # print(sleepiest_guard.tick_tock_dict)
+    # print(sleepiest_guard.event_list)
     # print(sleepiest_guard.get_sleepiest_minute())
     return sleepiest_guard.sleepiest_minute * sleepiest_guard.id
 
