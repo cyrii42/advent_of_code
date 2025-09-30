@@ -1,6 +1,7 @@
 from enum import Enum, IntEnum, StrEnum
 from typing import NamedTuple
 from dataclasses import dataclass, field
+from collections import deque
 
 class Direction(IntEnum):
     UP = 0
@@ -45,7 +46,6 @@ def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
         
     return output_dict
 
-
 def find_shortest_path(self, start_node: Node, end_node: Node) -> int:
     queue = deque([(start_node, [])])
 
@@ -63,3 +63,16 @@ def find_shortest_path(self, start_node: Node, end_node: Node) -> int:
                 queue.append((neighbor, new_path))
                 visited.add(neighbor)
     return -1
+
+def find_reachable_nodes(graph: dict[Point, list[Point]], 
+                         parent: Point,
+                         visited: Optional[set[Point]] = None) -> set[Point]:   
+    if visited is None:
+        visited = set()
+        
+    visited.add(parent)
+    for child in graph[parent]:
+        if child not in visited:
+            find_reachable_nodes(graph, child, visited)
+            
+    return visited
