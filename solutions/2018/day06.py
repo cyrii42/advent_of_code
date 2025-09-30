@@ -90,8 +90,12 @@ def create_graph(max_row: int,
                 output_dict[point] = get_point_neighbors(point, coordinate_list, max_row, max_col)
     return output_dict
 
-def create_closest_coordinate_dict(graph: dict[Point, list[Point]]) -> dict[Point, Coordinate|None]:
-    return {point: find_closest_coordinate(point, graph) for point in graph.keys()}
+# def create_closest_coordinate_dict(graph: dict[Point, list[Point]]) -> dict[Point, Coordinate|None]:
+    # output_dict = {}
+    # for point in alive_it(graph.keys()):
+    #     output_dict[point] = find_closest_coordinate(point, graph)
+    # return output_dict
+    # return {point: find_closest_coordinate(point, graph) for point in graph.keys()}
 
 def create_coordinate_area_dict(closest_coordinate_dict: dict[Point, Coordinate|None]) -> dict[Coordinate, list[Point]]:
     coordinate_set = {c for c in closest_coordinate_dict.values() if c}
@@ -127,7 +131,7 @@ def find_closest_coordinate(starting_point: Point, graph: dict[Point, list[Point
                 if prev_path_length == len(path):
                     return None
                 else:
-                    print(f"Starting Point: {starting_point} Winner: {prev_winner}")
+                    # print(f"Starting Point: {starting_point} Winner: {prev_winner}")
                     return prev_winner
             else:
                 closest_so_far = (point, len(path))
@@ -150,6 +154,67 @@ def find_largest_finite_area(coordinate_area_dict: dict[Coordinate, list[Point]]
                                and not any(point.col == max_col for point in area_list)]
     return max(len(area_list) for area_list in filtered_area_list_list)
 
+
+def create_coordinate_distance_dict(coordinate_list: list[Coordinate]) -> dict[Coordinate, dict[Point, int]]:
+    max_row, max_col = get_grid_dimensions(coordinate_list)
+
+    output_dict = {}
+    for c in coordinate_list:
+        sub_dict = {}
+        for row in range(max_row+1):
+            for col in range(max_col+1):
+                point = Point(row, col)
+                if point in coordinate_list:
+                    sub_dict[Coordinate(row, col)] = get_manhattan_distance(point, c)
+                else:
+                    sub_dict[point] = get_manhattan_distance(point, c)
+        output_dict[c] = sub_dict
+    return output_dict
+
+
+def find_closest_coordinate_to_point(point: Point, 
+                                     coordinate_distance_dict: dict[Coordinate, dict[Point, int]]
+                                     ) -> Coordinate | None:
+    distance_dict = {c: coordinate_distance_dict[c][point] for c in coordinate_distance_dict.keys()}
+    closest_distance = min(v for v in distance_dict.values())
+    if len([v for v in distance_dict.values() if v == closest_distance]) > 1:
+        # print(f"Point: {point} | Closest Coordinate: NONE")
+        # print(distance_dict)
+        return None
+    else:
+        closest_point = sorted([(k, v) for k, v in distance_dict.items()], key=lambda x: x[1])[0][0]
+        # print(f"Point: {point} | Closest Coordinate: {closest_point} (distance: {distance_dict[closest_point]})")
+        return closest_point
+
+    # winner, closest_so_far = None, 99999999
+    # for c in coordinate_distance_dict:
+    #     sub_dict = coordinate_distance_dict[c]
+    #     dist = sub_dict[point]
+    #     if c != winner and dist == closest_so_far:
+    #         return None
+    #     if dist < closest_so_far:
+    #         winner, closest_so_far = c, dist
+    # return winner
+            
+
+def create_closest_coordinate_dict(coordinate_distance_dict: dict[Coordinate, dict[Point, int]]
+                                  ) -> dict[Point, Coordinate|None]:
+    coordinate_list = [c for c in coordinate_distance_dict.keys()]
+    max_row, max_col = get_grid_dimensions(coordinate_list)
+
+    output_dict = {}
+    for row in range(max_row+1):
+        for col in range(max_col+1):
+            point = Point(row, col)
+            if point in coordinate_list:
+                output_dict[Coordinate(row, col)] = find_closest_coordinate_to_point(point,
+                                                                                     coordinate_distance_dict)
+            else:
+                output_dict[point] = find_closest_coordinate_to_point(point,
+                                                                      coordinate_distance_dict)
+    return output_dict
+
+
 def parse_data(data: str) -> list[Coordinate]:
     line_list = data.splitlines()
     output_list = []
@@ -161,9 +226,24 @@ def parse_data(data: str) -> list[Coordinate]:
 def part_one(data: str):
     coordinate_list = parse_data(data)
     max_row, max_col = get_grid_dimensions(coordinate_list)
-    graph = create_graph(max_row, max_col, coordinate_list)
+    # graph = create_graph(max_row, max_col, coordinate_list)
 
-    closest_coordinate_dict = create_closest_coordinate_dict(graph)
+    coordinate_distance_dict = create_coordinate_distance_dict(coordinate_list)
+
+    closest_coordinate_dict = create_closest_coordinate_dict(coordinate_distance_dict)
+    # print(closest_coordinate_dict)
+
+    ### eliminate all of the coordinates whose areas are definitely infinite
+    # (i.e., the coordinates closest to the edges)
+
+    ### maybe, instead of doing a BFS for every single point in the grid, you
+    # could just figure out the Manhattan distance to each coordinate for
+    # every point in the grid (or, somehow, just to the NEAREST coordinate?)
+
+    ### or go the other way?  for each coordinate, make a graph of Manhattan
+    # distances to each point in the grid - then you compare those graphs somehow
+
+    # closest_coordinate_dict = create_closest_coordinate_dict(graph)
     coordinate_area_dict = create_coordinate_area_dict(closest_coordinate_dict)
     return find_largest_finite_area(coordinate_area_dict, max_row, max_col)
     
