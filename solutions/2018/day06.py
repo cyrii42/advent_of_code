@@ -1,24 +1,6 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from enum import IntEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import NamedTuple
 from rich import print
 
 import advent_of_code as aoc
@@ -53,58 +35,6 @@ class Point(NamedTuple):
 class Coordinate(Point):
     pass
 
-def validate_point(point: Point, max_row: int, max_col: int) -> bool:
-    return point.row >= 0 and point.row <= max_row and point.col >= 0 and point.col <= max_col
-
-def get_point_neighbors(point: Point, 
-                        coordinate_list: list[Coordinate],
-                        max_row: int,
-                        max_col: int) -> list[Point]:
-    row, col = point.row, point.col
-
-    output_list = []
-    for dir in Direction:
-        delta_row, delta_col = DIRECTION_DELTAS[dir]
-        point = Point(row + delta_row, col + delta_col)
-
-        if not validate_point(point, max_row, max_col):
-            continue
-        
-        if point in coordinate_list:
-            output_list.append(Coordinate(row + delta_row, col + delta_col))
-        else:
-            output_list.append(point)
-    return output_list
-
-def create_graph(max_row: int, 
-                 max_col: int, 
-                 coordinate_list: list[Coordinate]
-                 ) -> dict[Point, list[Point]]:
-    output_dict = {}
-    for row in range(max_row+1):
-        for col in range(max_col+1):
-            point = Point(row, col)
-            if point in coordinate_list:
-                output_dict[Coordinate(row, col)] = get_point_neighbors(point, coordinate_list, max_row, max_col)
-            else:
-                output_dict[point] = get_point_neighbors(point, coordinate_list, max_row, max_col)
-    return output_dict
-
-# def create_closest_coordinate_dict(graph: dict[Point, list[Point]]) -> dict[Point, Coordinate|None]:
-    # output_dict = {}
-    # for point in alive_it(graph.keys()):
-    #     output_dict[point] = find_closest_coordinate(point, graph)
-    # return output_dict
-    # return {point: find_closest_coordinate(point, graph) for point in graph.keys()}
-
-def create_coordinate_area_dict(closest_coordinate_dict: dict[Point, Coordinate|None]) -> dict[Coordinate, list[Point]]:
-    coordinate_set = {c for c in closest_coordinate_dict.values() if c}
-
-    output_dict = {}
-    for coordinate in coordinate_set:
-        output_dict[coordinate] = [p for p, c in closest_coordinate_dict.items() if p and c == coordinate]
-    return output_dict
-
 def get_grid_dimensions(coordinate_list: list[Coordinate]) -> tuple[int, int]:
     max_row = max(coordinate.row for coordinate in coordinate_list)
     max_col = max(coordinate.col for coordinate in coordinate_list)
@@ -114,46 +44,6 @@ def get_grid_dimensions(coordinate_list: list[Coordinate]) -> tuple[int, int]:
 
 def get_manhattan_distance(p1: Point, p2: Point) -> int:
     return abs(p1.row - p2.row) + abs(p1.col - p2.col)
-
-def find_closest_coordinate(starting_point: Point, graph: dict[Point, list[Point]]) -> Coordinate | None:
-    assert starting_point in graph.keys()
-    queue = deque([(starting_point, [])])
-
-    visited = set()
-    visited.add(starting_point)
-
-    closest_so_far = (None, 0)
-    while queue:
-        point, path = queue.popleft()
-        if isinstance(point, Coordinate):
-            prev_winner, prev_path_length = closest_so_far
-            if prev_winner:
-                if prev_path_length == len(path):
-                    return None
-                else:
-                    # print(f"Starting Point: {starting_point} Winner: {prev_winner}")
-                    return prev_winner
-            else:
-                closest_so_far = (point, len(path))
-        neighbors = graph[point]
-        for neighbor in neighbors:
-            if neighbor not in visited:
-                new_path = path + [neighbor]
-                queue.append((neighbor, new_path))
-                visited.add(neighbor)
-    raise NoCoordinateFound
-
-def find_largest_finite_area(coordinate_area_dict: dict[Coordinate, list[Point]],
-                             max_row: int,
-                             max_col: int
-                             ) -> int:
-    filtered_area_list_list = [area_list for area_list in coordinate_area_dict.values()
-                               if not any(point.row == 0 for point in area_list)
-                               and not any(point.row == max_row for point in area_list)
-                               and not any(point.col == 0 for point in area_list)
-                               and not any(point.col == max_col for point in area_list)]
-    return max(len(area_list) for area_list in filtered_area_list_list)
-
 
 def create_coordinate_distance_dict(coordinate_list: list[Coordinate]) -> dict[Coordinate, dict[Point, int]]:
     max_row, max_col = get_grid_dimensions(coordinate_list)
@@ -171,31 +61,16 @@ def create_coordinate_distance_dict(coordinate_list: list[Coordinate]) -> dict[C
         output_dict[c] = sub_dict
     return output_dict
 
-
 def find_closest_coordinate_to_point(point: Point, 
                                      coordinate_distance_dict: dict[Coordinate, dict[Point, int]]
                                      ) -> Coordinate | None:
     distance_dict = {c: coordinate_distance_dict[c][point] for c in coordinate_distance_dict.keys()}
     closest_distance = min(v for v in distance_dict.values())
     if len([v for v in distance_dict.values() if v == closest_distance]) > 1:
-        # print(f"Point: {point} | Closest Coordinate: NONE")
-        # print(distance_dict)
         return None
     else:
         closest_point = sorted([(k, v) for k, v in distance_dict.items()], key=lambda x: x[1])[0][0]
-        # print(f"Point: {point} | Closest Coordinate: {closest_point} (distance: {distance_dict[closest_point]})")
         return closest_point
-
-    # winner, closest_so_far = None, 99999999
-    # for c in coordinate_distance_dict:
-    #     sub_dict = coordinate_distance_dict[c]
-    #     dist = sub_dict[point]
-    #     if c != winner and dist == closest_so_far:
-    #         return None
-    #     if dist < closest_so_far:
-    #         winner, closest_so_far = c, dist
-    # return winner
-            
 
 def create_closest_coordinate_dict(coordinate_distance_dict: dict[Coordinate, dict[Point, int]]
                                   ) -> dict[Point, Coordinate|None]:
@@ -214,6 +89,24 @@ def create_closest_coordinate_dict(coordinate_distance_dict: dict[Coordinate, di
                                                                       coordinate_distance_dict)
     return output_dict
 
+def create_coordinate_area_dict(closest_coordinate_dict: dict[Point, Coordinate|None]) -> dict[Coordinate, list[Point]]:
+    coordinate_set = {c for c in closest_coordinate_dict.values() if c}
+
+    output_dict = {}
+    for coordinate in coordinate_set:
+        output_dict[coordinate] = [p for p, c in closest_coordinate_dict.items() if p and c == coordinate]
+    return output_dict
+
+def find_largest_finite_area(coordinate_area_dict: dict[Coordinate, list[Point]],
+                             max_row: int,
+                             max_col: int
+                             ) -> int:
+    filtered_area_list_list = [area_list for area_list in coordinate_area_dict.values()
+                               if not any(point.row == 0 for point in area_list)
+                               and not any(point.row == max_row for point in area_list)
+                               and not any(point.col == 0 for point in area_list)
+                               and not any(point.col == max_col for point in area_list)]
+    return max(len(area_list) for area_list in filtered_area_list_list)
 
 def parse_data(data: str) -> list[Coordinate]:
     line_list = data.splitlines()
@@ -226,44 +119,31 @@ def parse_data(data: str) -> list[Coordinate]:
 def part_one(data: str):
     coordinate_list = parse_data(data)
     max_row, max_col = get_grid_dimensions(coordinate_list)
-    # graph = create_graph(max_row, max_col, coordinate_list)
-
     coordinate_distance_dict = create_coordinate_distance_dict(coordinate_list)
-
     closest_coordinate_dict = create_closest_coordinate_dict(coordinate_distance_dict)
-    # print(closest_coordinate_dict)
-
-    ### eliminate all of the coordinates whose areas are definitely infinite
-    # (i.e., the coordinates closest to the edges)
-
-    ### maybe, instead of doing a BFS for every single point in the grid, you
-    # could just figure out the Manhattan distance to each coordinate for
-    # every point in the grid (or, somehow, just to the NEAREST coordinate?)
-
-    ### or go the other way?  for each coordinate, make a graph of Manhattan
-    # distances to each point in the grid - then you compare those graphs somehow
-
-    # closest_coordinate_dict = create_closest_coordinate_dict(graph)
     coordinate_area_dict = create_coordinate_area_dict(closest_coordinate_dict)
     return find_largest_finite_area(coordinate_area_dict, max_row, max_col)
-    
+
+def get_size_of_central_region(coordinate_list: list[Coordinate]) -> int:
+    max_row, max_col = get_grid_dimensions(coordinate_list)
+    answer = 0
+    for row in range(max_row+1):
+        for col in range(max_col+1):
+            point = Point(row, col)
+            total_distance = sum(get_manhattan_distance(point, c) for c in coordinate_list)
+            if total_distance < 10_000:
+                answer += 1
+    return answer         
 
 def part_two(data: str):
-    ...
-
-
+    coordinate_list = parse_data(data)
+    return get_size_of_central_region(coordinate_list)
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    ...
-
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
        
 if __name__ == '__main__':
     main()
