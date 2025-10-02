@@ -46,30 +46,6 @@ def create_prereq_graph(pair_list: list[tuple[str, str]]
         output_dict[child].add(parent)
     return output_dict
 
-# def find_correct_order(order_graph: dict[str, set[str]], 
-#                        prereq_graph: dict[str, set[str]], 
-#                        parent: Optional[str] = None,
-#                        visited: Optional[list[str]] = None,
-#                        queue: Optional[set[str]] = None) -> str:  
-#     if not parent:
-#         parent = sorted(p for p in order_graph.keys() if p not in prereq_graph.keys())[0]
-#     if not visited:
-#         visited = []
-    
-#     visited.append(parent)
-
-#     for child in sorted(order_graph[parent]):
-#         if child not in visited:
-#             if all(n in visited for n in prereq_graph[child]):
-#                 find_correct_order(order_graph, prereq_graph, child, visited, queue)
-            
-#     return ''.join(node for node in visited)
-
-@dataclass
-class NodeQueue:
-    nodes: set[str]
-    visited: list[str]
-
 def find_correct_order(order_graph: dict[str, set[str]], 
                        prereq_graph: dict[str, set[str]]
                        ) -> str:
@@ -87,32 +63,6 @@ def find_correct_order(order_graph: dict[str, set[str]],
         if len(visited) == len(all_nodes):
             return ''.join(node for node in visited)
 
-
-    # visited.append(start)
-
-    # while True:
-    #     if queue.empty():
-    #         if len(visited) == len(order_graph):
-    #             break
-    #         else:
-    #             for key in order_graph.keys():
-    #                 if all(n in visited for n in prereq_graph[key]):
-    #                     queue.put(key)
-    #             if queue.empty():
-    #                 break
-    #     node = queue.get()
-    #     if node not in visited:
-    #         visited.append(node)
-    #     neighbors = order_graph[node]
-    #     for neighbor in neighbors:
-    #         if all(n in visited for n in prereq_graph[neighbor]):
-    #             queue.put(neighbor)
-
-    # while not queue.empty():
-        
-
-    return ''.join(node for node in visited)
-
 def parse_data(data: str) -> list[tuple[str, str]]:
     line_list = data.splitlines()
     output_list = []
@@ -125,8 +75,6 @@ def part_one(data: str):
     pair_list = parse_data(data)
     order_graph = create_order_graph(pair_list)
     prereq_graph = create_prereq_graph(pair_list)
-    # print(order_graph)
-    # print(prereq_graph)
     return find_correct_order(order_graph, prereq_graph)
 
 def part_two(data: str):
