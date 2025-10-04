@@ -1,24 +1,5 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
 import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -52,21 +33,26 @@ def get_metadata_total(data: list[int]):
     return total, remaining[n_metadata:]  
 
 def solve_part_two(data: list[int]):
-    ''' https://dev.to/steadbytes/aoc-2018-day-8-memory-maneuver-34jf '''
     n_children, n_metadata = data[0:2]
     remaining = data[2:]
 
-    child_node_values = []
-    
-    # if there aren't any children, this loop doesn't happen
-    for _ in range(n_children):
-        child_total, remaining = solve_part_two(remaining)
-        total += child_total
+    total = 0
 
-    current_node_metadata = remaining[0:n_metadata]
-    current_node_total = sum(current_node_metadata)
-
-    total += current_node_total
+    if n_children == 0:
+        current_node_metadata = remaining[0:n_metadata]
+        current_node_total = sum(current_node_metadata)
+        total += current_node_total
+    else:
+        children = []
+        for _ in range(n_children):
+            value, remaining = solve_part_two(remaining)
+            children.append(value)
+        current_node_metadata = remaining[0:n_metadata]
+        for i in current_node_metadata:
+            try:
+                total += children[i-1]  # metadata isn't zero-indexed
+            except IndexError:
+                continue
 
     return total, remaining[n_metadata:]  
     
@@ -84,13 +70,7 @@ def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-
-       
 if __name__ == '__main__':
     main()

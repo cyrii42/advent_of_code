@@ -85,8 +85,8 @@ class PuzzleAnswer:
             else:
                 return PuzzleAnswer(**result._asdict())
         
-    def submit(self) -> bool:
-        if self.already_submitted:
+    def submit(self, force: bool = False) -> bool:
+        if self.already_submitted and not force:
             self.get_info_from_sql()
             e = (f"{self.year} Day {self.day} Part {self.level}: Answer \"{self.answer}\" already submitted on " + 
                  f"{self.timestamp_dt.strftime("%Y-%m-%d at %-I:%M:%S %p")} " + 

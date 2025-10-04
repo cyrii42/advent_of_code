@@ -153,7 +153,8 @@ class Puzzle:
 
     def submit_answer(self, 
                       answer: str|int, 
-                      level: Optional[Literal[1, 2]] = None
+                      level: Optional[Literal[1, 2]] = None,
+                      force: bool = False
                       ) -> PuzzleAnswer:
         if not isinstance(answer, str):
             answer = str(answer)
@@ -167,7 +168,7 @@ class Puzzle:
                                   answer=answer)
 
         try:
-            answer_obj.submit()
+            answer_obj.submit(force=force)
         except (PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved) as e:
             logger.debug(e)
             raise

@@ -59,14 +59,14 @@ def template(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)]
  
 @app.command(help='Print the Advent of Code URL')
 def url(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=25)]):
+        day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     print(puzzle.url)
 
 @app.command(help='Print info about the answers already given to a puzzle')
 def answers(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
-         day: Annotated[int, typer.Argument(min=1, max=25)]):
+            day: Annotated[int, typer.Argument(min=1, max=25)]):
     puzzle = get_puzzle(year, day)
 
     table = Table()
@@ -142,11 +142,13 @@ def html(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)],
 @app.command(help='Submit an answer to the Advent of Code server')
 def submit(year: Annotated[int, typer.Argument(min=2015, max=LATEST_AOC_YEAR)], 
            day: Annotated[int, typer.Argument(min=1, max=25)], 
-           answer: Annotated[str, typer.Argument()]):
+           answer: Annotated[str, typer.Argument()],
+           force: Annotated[bool, typer.Option()] = False,
+           ):
     puzzle = get_puzzle(year, day)
 
     try:
-        answer_obj = puzzle.submit_answer(answer)
+        answer_obj = puzzle.submit_answer(answer, force=force)
     except (PuzzleAnswerAlreadySubmitted, PuzzleLevelAlreadySolved) as e:
         print(e)
     else:
