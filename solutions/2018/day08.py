@@ -50,6 +50,25 @@ def get_metadata_total(data: list[int]):
     total += current_node_total
 
     return total, remaining[n_metadata:]  
+
+def solve_part_two(data: list[int]):
+    ''' https://dev.to/steadbytes/aoc-2018-day-8-memory-maneuver-34jf '''
+    n_children, n_metadata = data[0:2]
+    remaining = data[2:]
+
+    child_node_values = []
+    
+    # if there aren't any children, this loop doesn't happen
+    for _ in range(n_children):
+        child_total, remaining = solve_part_two(remaining)
+        total += child_total
+
+    current_node_metadata = remaining[0:n_metadata]
+    current_node_total = sum(current_node_metadata)
+
+    total += current_node_total
+
+    return total, remaining[n_metadata:]  
     
 def part_one(data: str):
     node_data = [int(x) for x in data.split(' ')]
@@ -57,12 +76,14 @@ def part_one(data: str):
     return total
 
 def part_two(data: str):
-    ...
+    node_data = [int(x) for x in data.split(' ')]
+    total, _ = solve_part_two(node_data)
+    return total
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
