@@ -30,11 +30,11 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 INPUT = aoc.get_input(YEAR, DAY)
 TESTS_PART_ONE = [
     ('9 players; last marble is worth 25 points', 32),
-    # ('10 players; last marble is worth 1618 points', 8317),
-    # ('13 players; last marble is worth 7999 points', 146373),
-    # ('17 players; last marble is worth 1104 points', 2764),
-    # ('21 players; last marble is worth 6111 points', 54718),
-    # ('30 players; last marble is worth 5807 points', 37305),
+    ('10 players; last marble is worth 1618 points', 8317),
+    ('13 players; last marble is worth 7999 points', 146373),
+    ('17 players; last marble is worth 1104 points', 2764),
+    ('21 players; last marble is worth 6111 points', 54718),
+    ('30 players; last marble is worth 5807 points', 37305),
 ]
 
 @dataclass
@@ -42,7 +42,7 @@ class MarbleGame:
     num_players: int
     last_marble: int
     player = 0
-    ptr: int = 1
+    ptr: int = 0
     score_dict: dict[int, int] = field(init=False)
     marble_list: deque[int] = field(init=False)
     marble_bag: itertools.count = field(init=False)
@@ -68,33 +68,22 @@ class MarbleGame:
     def simulate_game(self):
         while True:
             next_marble = next(self.marble_bag)
-            if next_marble == self.last_marble:
-                # print(self.score_dict)
+
+            if next_marble > self.last_marble:
                 return max(v for v in self.score_dict.values())
 
             if next_marble % 23 == 0:
-                # print(self.marble_list)
                 self.marble_list.rotate(7)
-                self.ptr = (self.ptr - 7) % self.size
-                # print(self.marble_list)
-                self.score_dict[self.player] = self.marble_list.popleft()
+                removed_marble = self.marble_list.popleft()
+                self.score_dict[self.player] += next_marble
+                self.score_dict[self.player] += removed_marble               
+
             else:
-                self.marble_list.popleft()
-                self.marble_list.rotate(1 - self.ptr)
-                step_3_rotations = -1 if (self.ptr == 
-                                          (self.size - 1)) else -2
-                self.marble_list.rotate(step_3_rotations) 
+                self.marble_list.rotate(-2)
                 self.marble_list.appendleft(next_marble)
-                self.marble_list.rotate(self.ptr + 1)
-                self.marble_list.appendleft(0)
-                self.ptr = (self.ptr + 2) % self.size
-                self.print()
 
             self.player = (self.player + 1) % self.num_players
             
-            
-    
-
 def parse_data(data: str) -> MarbleGame:
     parts = data.split(' ')
     num_players = int(parts[0])
@@ -114,11 +103,9 @@ def part_one(data: str):
 def part_two(data: str):
     __ = parse_data(data)
 
-
-
 def main():
     part_one_tests()
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     # part_two_tests()
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
@@ -144,6 +131,38 @@ def random_tests():
     # asdf = deque([0, 8, 4, 9, 2, 10, 5, 11, 1, 6, 3, 7 ])
     # print(asdf)
 
+    # asdf = deque([0])
+
+    # ptr = 1
+    # x = 1
+    # while ptr < 10:
+    #     # print(asdf)
+    #     asdf.rotate(len(asdf) - ptr+1)
+    #     # print(asdf)
+    #     asdf.append(x)
+    #     # print(asdf)
+    #     asdf.rotate(1 - (len(asdf) - ptr+1))
+    #     ptr = (ptr + 2) % len(asdf)
+    #     x += 1
+    #     print(asdf)
+    
+
+    # asdf = deque([0, 4, 2, 1, 3])
+    # print(asdf)
+    # asdf.rotate(2)
+    # print(asdf)
+    # asdf.append(5)
+    # print(asdf)
+    # asdf.rotate(-2)
+    # print(asdf)
+    # print()
+    # print(asdf)
+    # asdf.rotate(2)
+    # print(asdf)
+    # asdf.append(6)
+    # print(asdf)
+    # asdf.rotate(-2)
+    # print(asdf)
     
     # asdf.popleft()  # remove leading zero
     # asdf.rotate(1 - ptr)  # put the current pointer at the beginning
