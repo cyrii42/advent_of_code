@@ -1,24 +1,6 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from dataclasses import dataclass
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import NamedTuple
 from rich import print
 
 import advent_of_code as aoc
@@ -30,35 +12,59 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 
-@dataclass
-class Position:
-    ''' x is horizontal; y is vertical '''
+class Position(NamedTuple):
     x: int
     y: int
-    vx: int
-    vy: int
+
+class Velocity(Position):
+    pass
+
+@dataclass
+class Light:
+    position: Position
+    velocity: Velocity
 
     def increment(self) -> None:
-        self.x += self.vx
-        self.y += self.vy
+        x, y = self.position
+        vx, vy = self.velocity
+        self.position = Position(x + vx, y + vy)
 
 @dataclass
 class LightGroup:
-    lights: list[Position]
+    lights: list[Light]
+
+    @property
+    def lit_points(self) -> list[Position]:
+        return [light.position for light in self.lights]
+
+    @property
+    def num_unique_columns(self) -> int:
+        return len(set([light.position.y for light in self.lights]))
 
     @property
     def min_max(self) -> tuple[int, int, int, int]:
         ''' Returns: (min_x, min_y, max_x, max_y) '''
-        min_x = min(light.x for light in self.lights)
-        min_y = min(light.y for light in self.lights)
-        max_x = max(light.x for light in self.lights)
-        max_y = max(light.y for light in self.lights)
+        min_x = min(light.position.x for light in self.lights)
+        min_y = min(light.position.y for light in self.lights)
+        max_x = max(light.position.x for light in self.lights)
+        max_y = max(light.position.y for light in self.lights)
 
         return (min_x, min_y, max_x, max_y)
 
     def print_grid(self) -> None:
-        ...
+        min_x, min_y, max_x, max_y = self.min_max
 
+        for y in range(min_y, max_y+1):
+            row = ''
+            for x in range(min_x, max_x+1):
+                pos = Position(x, y)
+                row += '#' if pos in self.lit_points else '.'
+            print(row)
+
+    def increment(self) -> None:
+        for light in self.lights:
+            light.increment()
+            
 def parse_data(data: str):
     line_list = data.splitlines()
     output_list = []
@@ -66,30 +72,32 @@ def parse_data(data: str):
         line = line.replace('position=', '').replace('velocity=', '')
         line = line.replace('<', '').replace('>', '').replace(',', '')
         x, y, vx, vy = [int(num) for num in line.split(' ') if num]
-        output_list.append(Position(x, y, vx, vy))
+        output_list.append(Light(Position(x, y), Velocity(vx, vy)))
     return LightGroup(output_list)
+
+def run_example():
+    data = EXAMPLE
+    lights = parse_data(data)
+    for _ in range(3):
+        lights.increment()
+    lights.print_grid()
+    print()
     
-def part_one(data: str):
-    light_group = parse_data(data)
-    print(light_group.min_max)
+def part_one_and_part_two(data: str):
+    lights = parse_data(data)
+    starting_unique_cols = lights.num_unique_columns
     
-
-def part_two(data: str):
-    __ = parse_data(data)
-
-
-
+    total_time = 0
+    while lights.num_unique_columns >= starting_unique_cols - 80:
+        total_time += 1
+        lights.increment()
+        
+    lights.print_grid()
+    return total_time
+        
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    ...
-
+    run_example()
+    print(f"Part Two Answer:  {part_one_and_part_two(INPUT)}")
        
 if __name__ == '__main__':
     main()
