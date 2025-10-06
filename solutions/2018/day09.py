@@ -1,24 +1,7 @@
-import functools
-import hashlib
 import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
 from collections import defaultdict, deque
-from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -42,7 +25,6 @@ class MarbleGame:
     num_players: int
     last_marble: int
     player = 0
-    ptr: int = 0
     score_dict: dict[int, int] = field(init=False)
     marble_list: deque[int] = field(init=False)
     marble_bag: itertools.count = field(init=False)
@@ -58,11 +40,8 @@ class MarbleGame:
 
     def print(self) -> None:
         output = ''
-        for i, num in enumerate(self.marble_list):
-            if i == self.ptr:
-                output += f"({num})"
-            else:
-                output += ' ' + str(num) + ' '
+        for num in self.marble_list:
+            output += ' ' + str(num) + ' '
         print(output)
 
     def simulate_game(self):
@@ -95,98 +74,20 @@ def part_one_tests():
         data, answer = example
         print(f"Test #{i}: {part_one(data) == answer}",
               f"({part_one(data)})")
-    
+
 def part_one(data: str):
     game = parse_data(data)
     return game.simulate_game()
 
 def part_two(data: str):
-    __ = parse_data(data)
+    game = parse_data(data)
+    game.last_marble *= 100
+    return game.simulate_game()
 
 def main():
     part_one_tests()
     print(f"Part One (input):  {part_one(INPUT)}")
-    # part_two_tests()
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-'''
-[6]  0  4  2  5  1 (6) 3 
-[7]  0  4  2  5  1  6  3 (7)
-[8]  0 (8) 4  2  5  1  6  3  7 
-[9]  0  8  4 (9) 2  5  1  6  3  7 
-[1]  0  8  4  9  2(10) 5  1  6  3  7 
-[2]  0  8  4  9  2 10  5(11) 1  6  3  7 
-[3]  0  8  4  9  2 10  5 11  1(12) 6  3  7 
-'''
-
-def random_tests():
-    ...
-    # ptr = 7
-    # # asdf = deque([0, 4, 2, 5, 1, 3])
-    # # asdf = deque([0, 2, 1, 3
-    # # asdf = deque([0, 4, 2, 5, 1, 6, 3, 7])
-    # next_num = 12
-    # asdf = deque([0, 8, 4, 9, 2, 10, 5, 11, 1, 6, 3, 7 ])
-    # print(asdf)
-
-    # asdf = deque([0])
-
-    # ptr = 1
-    # x = 1
-    # while ptr < 10:
-    #     # print(asdf)
-    #     asdf.rotate(len(asdf) - ptr+1)
-    #     # print(asdf)
-    #     asdf.append(x)
-    #     # print(asdf)
-    #     asdf.rotate(1 - (len(asdf) - ptr+1))
-    #     ptr = (ptr + 2) % len(asdf)
-    #     x += 1
-    #     print(asdf)
-    
-
-    # asdf = deque([0, 4, 2, 1, 3])
-    # print(asdf)
-    # asdf.rotate(2)
-    # print(asdf)
-    # asdf.append(5)
-    # print(asdf)
-    # asdf.rotate(-2)
-    # print(asdf)
-    # print()
-    # print(asdf)
-    # asdf.rotate(2)
-    # print(asdf)
-    # asdf.append(6)
-    # print(asdf)
-    # asdf.rotate(-2)
-    # print(asdf)
-    
-    # asdf.popleft()  # remove leading zero
-    # asdf.rotate(1 - ptr)  # put the current pointer at the beginning
-    # step_3_rotations = -1 if ptr == (len(asdf) - 1) else -2
-    # asdf.rotate(step_3_rotations)  # rotate CW one or two more times
-    # asdf.appendleft(next_num)   # insert the next number at the beginning
-    # asdf.rotate(ptr + 1)  # rotate back
-    # asdf.appendleft(0)  # replace leading zero
-    # print(asdf)
-
-    
-    # c = itertools.count(1)
-    # asdf = deque([0])
-    # ptr = 1
-    # for _ in range(5):
-    #     offset = (ptr * 2) % len(asdf)
-    #     asdf.popleft()
-    #     asdf.rotate(1-offset)
-    #     asdf.appendleft(next(c))
-    #     asdf.rotate(offset)
-    #     asdf.appendleft(0)
-    #     print(asdf)
-    #     ptr += 1
-
-       
 if __name__ == '__main__':
     main()
