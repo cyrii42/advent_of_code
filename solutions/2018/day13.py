@@ -1,24 +1,7 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from enum import Enum, IntEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import NamedTuple
 from rich import print
 
 import advent_of_code as aoc
@@ -29,12 +12,9 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
 with open(aoc.DATA_DIR / '2018.13_example.txt', 'r') as f:
     EXAMPLE = f.read()
+with open(aoc.DATA_DIR / '2018.13_example_part_two.txt', 'r') as f:
+    EXAMPLE_PART_TWO = f.read()
 INPUT = aoc.get_input(YEAR, DAY)
-
-sys.setrecursionlimit(10**6)
-
-class TooManyNeigbors(Exception):
-    pass
 
 class Direction(IntEnum):
     UP = 0
@@ -52,9 +32,8 @@ DIRECTION_DELTAS = {
 class NodeType(Enum):
     VERTICAL = 0        # |
     HORIZONTAL = 1      # -
-    CURVE_LEFT = 2      # \
-    CURVE_RIGHT = 3     # /
-    CURVE = 9           # \ or /
+    CURVE_BACKSLASH = 2 # \
+    CURVE_SLASH = 3     # /
     INTERSECTION = 4    # +
     CART_UP = 5         # ^
     CART_DOWN = 6       # v
@@ -80,18 +59,12 @@ class CartTurn(IntEnum):
     STRAIGHT = 1
     RIGHT = 2
 
-class NotAnIntersection(Exception):
-    pass
-
 @dataclass
 class Cart:
     id: int
     node: Node
     direction: Direction 
-    intersection_dict: dict[Node, int] = field(init=False)
-
-    def __post_init__(self):
-        self.intersection_dict = defaultdict(int)
+    num_turns: int = 0
 
     def turn_left(self):
         self.direction = Direction((self.direction - 1) % len(Direction))
@@ -100,14 +73,21 @@ class Cart:
         self.direction = Direction((self.direction + 1) % len(Direction))
 
     def turn_at_curve(self):
-        match [self.direction, self.node.node_type,]:
-            case [Direction.NodeType.C]
+        match [self.direction, self.node.node_type]:
+            case ([Direction.RIGHT, NodeType.CURVE_BACKSLASH]   # > \
+                  | [Direction.DOWN, NodeType.CURVE_SLASH]      # /
+                  | [Direction.LEFT, NodeType.CURVE_BACKSLASH]  # \ <
+                  | [Direction.UP, NodeType.CURVE_SLASH]):      # /
+                self.turn_right()
+            case ([Direction.RIGHT, NodeType.CURVE_SLASH]       # > /
+                  | [Direction.DOWN, NodeType.CURVE_BACKSLASH]  # \
+                  | [Direction.LEFT, NodeType.CURVE_SLASH]      # / <
+                  | [Direction.UP, NodeType.CURVE_BACKSLASH]):  # \
+                self.turn_left()
 
     def turn_at_intersection(self) -> None:
-        if self.node.node_type != NodeType.INTERSECTION:
-            raise NotAnIntersection
-     
-        self.turn_type = self.intersection_dict[self.node] % len(CartTurn)
+        self.turn_type = self.num_turns % len(CartTurn)
+        
         match self.turn_type:
             case CartTurn.LEFT:
                 self.turn_left()
@@ -115,37 +95,55 @@ class Cart:
                 self.turn_right()
             case _:
                 pass
-        self.intersection_dict[self.node] += 1
+            
+        self.num_turns += 1
 
     def tick(self, graph: dict[Node, list[Node]]) -> None:
         x, y = (self.node.position.x, self.node.position.y)
         delta_x, delta_y = DIRECTION_DELTAS[self.direction]
         next_position = Position(x + delta_x, y + delta_y)
         try:
-            next_node = next(n for n in graph[self.node] if n.position == next_position)  
+            next_node = next(n for n in graph[self.node] 
+                             if n.position == next_position)  
         except StopIteration:
             print(f"Failed to find node at position {next_position}")
             print(graph[self.node])
             raise
         else:
             self.node = next_node
-            if self.node.node_type == NodeType.INTERSECTION:
-                self.turn_at_intersection()
-            elif self.node.node_type == NodeType.CURVE_LEFT or NodeType.CURVE_RIGHT:
-                self.turn_at_curve()
+            match self.node.node_type:
+                case NodeType.INTERSECTION:
+                    self.turn_at_intersection()
+                case NodeType.CURVE_SLASH | NodeType.CURVE_BACKSLASH:
+                    self.turn_at_curve()
+                case _:
+                    pass
 
 @dataclass
 class CartGroup:
     carts: list[Cart]
     graph: dict[Node, list[Node]]
 
-    def tick(self):
+    def tick(self, part_two: bool = False):       
         for cart in self.carts:
             cart.tick(graph=self.graph)
 
-        if len([cart.node for cart in self.carts]) < len(self.carts):
-            print("COLLISION!!!!!!!!")
-        
+            num_positions = len(set([cart.node.position for cart in self.carts]))
+            if num_positions < len(self.carts):
+                position_list = [cart.node.position for cart in self.carts]
+                collision_points = {p for p in position_list 
+                                    if position_list.count(p) > 1}
+
+                if part_two:
+                    self.carts = [c for c in self.carts 
+                                  if c.node.position not in collision_points]
+                else:
+                    collision_point = collision_points.pop()
+                    return collision_point
+
+        if len(self.carts) == 1:
+            last_cart = self.carts[0]
+            return last_cart.node.position
 
 def get_node_neighbor_coordinates(node: Node) -> list[Position]:
     x, y = (node.position.x, node.position.y)
@@ -173,55 +171,6 @@ def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
         
     return output_dict
 
-def find_start(node_list: list[Node]) -> Node:
-    return next(node for node in node_list if node.position.y == 0)
-
-def determine_next_direction(node: Node, next_node: Node) -> Direction:
-    delta_x = next_node.position.x - node.position.x
-    delta_y = next_node.position.y - node.position.y
-    match (delta_x, delta_y):
-        case (0, -1):
-            return Direction.UP
-        case (1, 0):
-            return Direction.RIGHT
-        case (0, 1):
-            return Direction.DOWN
-        case (-1, 0):
-            return Direction.LEFT
-        case _:
-            raise ValueError
-
-def walk_path(graph: dict[Node, list[Node]],
-              node: Node,
-              dir: Direction = Direction.DOWN,
-              visited: Optional[list[tuple[Node, Direction]]] = None
-              ) -> tuple[str, int]:
-    if not visited:
-        visited = []
-
-    visited.append((node, dir))
-
-    if node.node_type == NodeType.INTERSECTION:
-        next_node = next(n for n in graph[node] if (n, dir) not in visited)
-        next_dir = determine_next_direction(node, next_node)
-        walk_path(graph, next_node, next_dir, visited)
-
-    else:
-        x, y = (node.position.x, node.position.y)
-        delta_x, delta_y = DIRECTION_DELTAS[dir]
-        next_x = x + delta_x
-        next_y = y + delta_y
-        try:
-            next_node = next(n for n in graph[node] 
-                             if n.position.x == next_x 
-                             and n.position.y == next_y)    
-            walk_path(graph, next_node, dir, visited) 
-        except StopIteration:
-            pass
-
-    return (''.join(node.char for node, _ in visited if node.char.isalpha()),
-            len(visited))
-
 def parse_data(data: str) -> tuple[list[Node], list[Cart]]:
     line_list = data.splitlines()
     node_list, cart_list = ([], [])
@@ -234,16 +183,10 @@ def parse_data(data: str) -> tuple[list[Node], list[Cart]]:
                 node_type = NodeType.VERTICAL
             elif char == '-':
                 node_type = NodeType.HORIZONTAL
-
-            #### CURVE CAN BE LEFT OR RIGHT DEPENDING ON THE DIRECTION YOU'RE COMING FROM ####  
-            elif char in ['\\', '/']:
-                node_type = NodeType.CURVE  
-            # elif char == '\\':
-            #     node_type = NodeType.CURVE_LEFT
-            # elif char == '/':
-            #     node_type = NodeType.CURVE_RIGHT
-
-
+            elif char == '\\':
+                node_type = NodeType.CURVE_BACKSLASH
+            elif char == '/':
+                node_type = NodeType.CURVE_SLASH
             elif char == '+':
                 node_type = NodeType.INTERSECTION
             elif char == '^':
@@ -274,37 +217,34 @@ def parse_data(data: str) -> tuple[list[Node], list[Cart]]:
                 raise ValueError
             node_list.append(Node(Position(x, y), char, node_type))
     return (node_list, cart_list)
-    
+
 def part_one(data: str):
     node_list, cart_list = parse_data(data)
     graph = create_graph(node_list)
     cart_group = CartGroup(cart_list, graph)
 
-    for _ in range(20):
-        cart_group.tick()
-    
-    # start = find_start(node_list)
-    # p1_answer, p2_answer = walk_path(graph, start)
-    # print(f"Part One:  {p1_answer}")
-    # print(f"Part Two:  {p2_answer}")
+    answer = None
+    while True:
+        answer = cart_group.tick()
+        if answer:
+            return answer
 
 def part_two(data: str):
-    __ = parse_data(data)
+    node_list, cart_list = parse_data(data)
+    graph = create_graph(node_list)
+    cart_group = CartGroup(cart_list, graph)
 
-
-
+    answer = None
+    while True:
+        answer = cart_group.tick(part_two=True)
+        if answer:
+            return answer
+        
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    direction = Direction.UP
-    print(Direction((direction + 1) % len(Direction)).name)
-
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE_PART_TWO)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
        
 if __name__ == '__main__':
     main()
