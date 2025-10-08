@@ -1,9 +1,8 @@
-from collections import defaultdict, deque
-from copy import deepcopy
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 from rich import print
 
@@ -20,9 +19,7 @@ TESTS_PART_ONE = [
     ("#######\n#E..EG#\n#.#G.E#\n#E.##E#\n#G..#.#\n#..E#.#\n#######\n", 46, 859, 39514),
     ("#######\n#E.G#.#\n#.#G..#\n#G.#.G#\n#G..#.#\n#...E.#\n#######\n", 35, 793, 27755), 
     ("#######\n#.E...#\n#.#..G#\n#.###.#\n#E#G#G#\n#...#G#\n#######\n", 54, 536, 28944),
-    ("#########\n#G......#\n#.E.#...#\n#..##..G#\n#...##..#\n#...#...#\n#.G...G.#\n#.....G.#\n#########\n", 20, 937, 18740),
-    
-   
+    ("#########\n#G......#\n#.E.#...#\n#..##..G#\n#...##..#\n#...#...#\n#.G...G.#\n#.....G.#\n#########\n", 20, 937, 18740),   
 ]
 
 STARTING_HP = 200
@@ -168,10 +165,11 @@ class Unit:
         if len(adjacent_targets) > 1:
             adjacent_targets = sort_units(adjacent_targets)
             adjacent_targets.sort(key=lambda unit: unit.hit_points)
-            if (len(adjacent_targets) > 2 and adjacent_targets[0].hit_points == adjacent_targets[1].hit_points):
-                print(f"Adjacent Targets: {adjacent_targets}")
-                print(f"Target: {adjacent_targets[0]}")
-                print()
+            if print_info:
+                if (len(adjacent_targets) > 2 and adjacent_targets[0].hit_points == adjacent_targets[1].hit_points):
+                    print(f"Adjacent Targets: {adjacent_targets}")
+                    print(f"Target: {adjacent_targets[0]}")
+                    print()
         target = adjacent_targets[0]
         target.hit_points = max(0, target.hit_points - self.attack_power)
         if print_info:
