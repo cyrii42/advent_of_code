@@ -1,4 +1,3 @@
-from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from alive_progress import alive_bar
@@ -35,12 +34,12 @@ class Elf:
 class ElfPair:
     num_recipes: int
     elves: tuple[Elf, Elf] = field(init=False)
-    scoreboard: deque[int] = field(init=False)
+    scoreboard: list[int] = field(init=False)
 
     def __post_init__(self):
         score_0, score_1 = START
         self.elves = (Elf(0, score_0), Elf(1, score_1))
-        self.scoreboard = deque([*START])      
+        self.scoreboard = [*START]
 
     def create_new_recipes(self) -> None:
         total_score = sum(elf.score for elf in self.elves)
@@ -53,11 +52,9 @@ class ElfPair:
         for elf in self.elves:
             num_steps = elf.score + 1
             next_index = (elf.index + num_steps) % len(self.scoreboard)
-            self.scoreboard.rotate(0 - next_index)
-            next_score = self.scoreboard[0]
+            next_score = self.scoreboard[next_index]
             elf.index = next_index
             elf.score = next_score
-            self.scoreboard.rotate(next_index)
 
     def execute_next_round(self) -> None:
         self.create_new_recipes()
@@ -67,19 +64,20 @@ class ElfPair:
         while len(self.scoreboard) < self.num_recipes + 10:
             self.execute_next_round()
 
-        self.scoreboard.rotate(0 - self.num_recipes)
-        return ''.join(str(self.scoreboard.popleft()) for _ in range(10))
+        return ''.join(str(num) for num 
+                       in self.scoreboard[self.num_recipes:self.num_recipes+10])
 
-    def solve_part_two(self, input_str: str) -> int:
+    def solve_part_two(self, input_str: str, check: int = 10_000) -> int:
         with alive_bar() as bar:
             i = 0
             while True:
-                i += 1
                 self.execute_next_round()
-                if i % 100_000 == 0:
-                    scoreboard_str = ''.join(str(num) for num in self.scoreboard)
-                    if input_str in scoreboard_str:
-                        return scoreboard_str.index(input_str)
+                if i % check == 0:
+                    sb_str = ''.join(str(num) for num in self.scoreboard[-check:])
+                    if input_str in sb_str:
+                        full_sb_str = ''.join(str(num) for num in self.scoreboard)
+                        return full_sb_str.index(input_str)
+                i += 1
                 bar()
 
 def part_one_tests():
@@ -102,9 +100,8 @@ def part_one(data: str):
 
 def part_two(data: str):
     elf_pair = ElfPair(int(data))
-    return elf_pair.solve_part_two(input_str=data)
-
-
+    check = 10_000 if data == INPUT else 1_000
+    return elf_pair.solve_part_two(input_str=data, check=check)
 
 def main():
     part_one_tests()
@@ -112,11 +109,5 @@ def main():
     part_two_tests()
     print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-
-       
 if __name__ == '__main__':
     main()
