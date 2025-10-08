@@ -3,6 +3,7 @@ import pathlib
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
+
 from rich import print
 
 import advent_of_code as aoc
@@ -70,8 +71,9 @@ class Room():
         output_list = []
         for dir, delta in DIRECTION_DELTAS.items():
             if self.is_open(dir):
-                output_list.append(Room(self.x+delta[0], 
-                                        self.y+delta[1],
+                dx, dy = delta
+                output_list.append(Room(self.x + dx, 
+                                        self.y + dy,
                                         path=self.path + dir.name,
                                         passcode=self.passcode))
         return output_list
