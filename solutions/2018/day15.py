@@ -4,6 +4,7 @@ from enum import Enum, IntEnum
 from pathlib import Path
 from typing import NamedTuple
 
+from alive_progress import alive_bar
 from rich import print
 
 import advent_of_code as aoc
@@ -20,6 +21,13 @@ TESTS_PART_ONE = [
     ("#######\n#E.G#.#\n#.#G..#\n#G.#.G#\n#G..#.#\n#...E.#\n#######\n", 35, 793, 27755), 
     ("#######\n#.E...#\n#.#..G#\n#.###.#\n#E#G#G#\n#...#G#\n#######\n", 54, 536, 28944),
     ("#########\n#G......#\n#.E.#...#\n#..##..G#\n#...##..#\n#...#...#\n#.G...G.#\n#.....G.#\n#########\n", 20, 937, 18740),   
+]
+TESTS_PART_TWO = [
+    ("#######\n#.G...#\n#...EG#\n#.#.#G#\n#..G#E#\n#.....#\n#######", 15, 4988),
+    ("#######\n#E..EG#\n#.#G.E#\n#E.##E#\n#G..#.#\n#..E#.#\n#######\n", 4, 31284),
+    ("#######\n#E.G#.#\n#.#G..#\n#G.#.G#\n#G..#.#\n#...E.#\n#######\n", 15, 3478), 
+    ("#######\n#.E...#\n#.#..G#\n#.###.#\n#E#G#G#\n#...#G#\n#######\n", 12, 6474),
+    ("#########\n#G......#\n#.E.#...#\n#..##..G#\n#...##..#\n#...#...#\n#.G...G.#\n#.....G.#\n#########\n", 34, 1140),   
 ]
 
 STARTING_HP = 200
@@ -154,10 +162,27 @@ class Unit:
             return (next_node, target_node)
 
     def get_winning_start_and_target(self, path_list: list[NodePath]) -> tuple[Node, Node]:
-        path_dict = {path.nodes[0]: path.nodes[-1] for path in path_list}
+
+        '''
+        the issue is probably here:
+        https://www.reddit.com/r/adventofcode/comments/a6g4nf/comment/ebuos5j/
+        '''
+
+
+
+        
+        first_to_target_dict = {path.nodes[0]: path.nodes[-1] for path in path_list}
+        target_to_first_dict = {path.nodes[-1]: path.nodes[0] for path in path_list}
+        
+        target_nodes = [path.nodes[0] for path in path_list]
+        target_nodes_sorted = sort_nodes(target_nodes)
+        winning_target_node = target_nodes_sorted[0]
+
         first_nodes = [path.nodes[0] for path in path_list]
         first_nodes_sorted = sort_nodes(first_nodes)
         winning_first_node = first_nodes_sorted[0]
+
+
         winning_target_node = path_dict[winning_first_node]
         return (winning_first_node, winning_target_node)
 
@@ -192,7 +217,13 @@ class Game:
     def sort_all_units(self) -> None:
         self.units = sort_units(self.units)
 
-    def simulate_combat(self, print_info: bool = False):
+    def simulate_combat(self, 
+                        elf_attack: int = 0,
+                        print_info: bool = False):
+        if elf_attack:
+            for unit in self.units:
+                if isinstance(unit, Elf):
+                    unit.attack_power = elf_attack
         while True:
             self.sort_all_units()
             if print_info:
@@ -232,6 +263,25 @@ class Game:
             self.simulate_combat(print_info=print_info)
         except NoTargetsRemaining:
             return (self.rounds_completed,
+                    sum(unit.hit_points for unit in self.units),
+                    (self.rounds_completed * sum(unit.hit_points 
+                                                for unit in self.units)))
+
+    def solve_part_two(self, 
+                       elf_attack: int = 0,
+                       print_info: bool = False) -> tuple:   # type: ignore
+        num_elves_at_start = len([unit for unit in self.units if isinstance(unit, Elf)])
+        try:
+            self.simulate_combat(elf_attack=elf_attack,
+                                 print_info=print_info)
+        except NoTargetsRemaining:
+            remaining_elves = len([unit for unit in self.units 
+                                   if isinstance(unit, Elf) and unit.hit_points > 0])
+            no_elves_died = remaining_elves == num_elves_at_start
+            print(self)
+            return (no_elves_died,
+                    elf_attack,
+                    self.rounds_completed,
                     sum(unit.hit_points for unit in self.units),
                     (self.rounds_completed * sum(unit.hit_points 
                                                 for unit in self.units)))
@@ -382,6 +432,21 @@ def part_one_tests(print_info: bool = False):
             print("---------------------------------------")
             print()
 
+def part_two_tests(print_info: bool = False):
+    for i, example in enumerate(TESTS_PART_TWO, start=1):
+        data, elf_attack, outcome = example
+        no_elves_died, test_elf_attack, test_num_rounds, test_total_hp, test_outcome = part_two(data, print_info=print_info)
+        success = no_elves_died and test_elf_attack == elf_attack and test_outcome == outcome
+        print(f"Test #{i}: {success} ({test_elf_attack}, {test_outcome}) (should be {elf_attack}, {outcome})",
+            #   f"({test_num_rounds} rounds, {test_total_hp} total HP, {test_outcome} outcome)",
+            #   f"(should be {num_rounds}, {total_hp}, {outcome})"
+            )
+
+        if print_info:
+            print()
+            print("---------------------------------------")
+            print()
+
 def part_one(data: str, print_info: bool = False):
     node_list, unit_list = parse_data(data)
     graph = create_graph(node_list)
@@ -389,15 +454,55 @@ def part_one(data: str, print_info: bool = False):
     
     return game.solve_part_one(print_info=print_info)
 
-def part_two(data: str):
-    ...
+def part_two(data: str, print_info: bool = False, guess: int = 0):
+    if guess:
+        node_list, unit_list = parse_data(data)
+        graph = create_graph(node_list)
+        game = Game(graph, unit_list)
+        return game.solve_part_two(elf_attack=guess, print_info=print_info)
+    
+    x = 0
+    while True:
+        node_list, unit_list = parse_data(data)
+        graph = create_graph(node_list)
+        game = Game(graph, unit_list)
+        response = game.solve_part_two(elf_attack=x, print_info=print_info)
+        if response[0]:
+            return response
+        x += 1
 
-
+'''
+Part Two (input):  (False, 4, 84, 2140, 179760)
+Part Two (input):  (False, 5, 79, 1770, 139830)
+Part Two (input):  (False, 6, 82, 1324, 108568)
+Part Two (input):  (False, 7, 88, 738, 64944)
+Part Two (input):  (False, 8, 96, 130, 12480)
+Part Two (input):  (False, 9, 82, 449, 36818)
+Part Two (input):  (False, 10, 74, 601, 44474)
+Part Two (input):  (False, 11, 73, 714, 52122)
+Part Two (input):  (False, 12, 59, 832, 49088)
+Part Two (input):  (False, 13, 56, 913, 51128)
+Part Two (input):  (False, 14, 53, 991, 52523)
+Part Two (input):  (False, 15, 50, 1095, 54750)
+Part Two (input):  (False, 16, 47, 1194, 56118)
+Part Two (input):  (False, 17, 44, 1314, 57816)
+Part Two (input):  (False, 18, 44, 1314, 57816)
+Part Two (input):  (True, 19, 40, 1367, 54680)
+Part Two (input):  (True, 20, 41, 1400, 57400)
+Part Two (input):  (True, 21, 41, 1400, 57400)
+Part Two (input):  (True, 22, 41, 1400, 57400)
+Part Two (input):  (True, 23, 38, 1475, 56050)
+Part Two (input):  (True, 24, 38, 1475, 56050)
+Part Two (input):  (True, 25, 34, 1541, 52394)
+'''
 
 def main():
-    part_one_tests(print_info=False)
-    print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    # part_one_tests(print_info=False)
+    # print(f"Part One (input):  {part_one(INPUT)}")
+    # part_two_tests(print_info=False)
+
+    for guess in range(18, 19):
+        print(f"Part Two (input):  {part_two(INPUT, guess=guess)}")
 
     random_tests()
 
