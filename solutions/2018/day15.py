@@ -28,6 +28,14 @@ YEAR = int(CURRENT_FILE.parts[-2])
 DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
 INPUT = aoc.get_input(YEAR, DAY)
+TESTS_PART_ONE = [
+    ("#######\n#.G...#\n#...EG#\n#.#.#G#\n#..G#E#\n#.....#\n#######", 47, 590, 27730),
+    ("#######\n#G..#E#\n#E#E.E#\n#G.##.#\n#...#E#\n#...E.#\n#######", 37, 982, 36334),
+    ("#######\n#E..EG#\n#.#G.E#\n#E.##E#\n#G..#.#\n#..E#.#\n#######\n", 46, 859, 39514),
+    ("#######\n#E.G#.#\n#.#G..#\n#G.#.G#\n#G..#.#\n#...E.#\n#######\n", 35, 793, 27755), 
+    ("#######\n#.E...#\n#.#..G#\n#.###.#\n#E#G#G#\n#...#G#\n#######\n", 54, 536, 28944),
+    ("#########\n#G......#\n#.E.#...#\n#..##..G#\n#...##..#\n#...#...#\n#.G...G.#\n#.....G.#\n#########\n", 20, 937, 18740),
+]
 
 STARTING_HP = 200
 ATTACK_POWER = 3
@@ -59,8 +67,7 @@ class Node:
     node_type: NodeType
 
     def __repr__(self):
-        return (f"({self.node_type.name}: " + 
-                f"x={self.position.x}, y={self.position.y})")
+        return (f"x={self.position.x}, y={self.position.y}")
 
 class NoTargetsRemaining(Exception):
     pass
@@ -68,6 +75,9 @@ class NoTargetsRemaining(Exception):
 class UnitType(Enum):
     GOBLIN = 0
     ELF = 1
+
+class NodePath(NamedTuple):
+    nodes: list[Node]
 
 @dataclass
 class Unit:
@@ -77,92 +87,71 @@ class Unit:
     attack_power: int = ATTACK_POWER
 
     @property
-    def enemy_type(self) -> UnitType:
-        return UnitType.GOBLIN if isinstance(self, Elf) else UnitType.ELF
+    def unit_type(self) -> UnitType:
+        return UnitType.ELF if isinstance(self, Elf) else UnitType.GOBLIN  
 
-    def sort_units(self, unit_list: list["Unit"]) -> list["Unit"]:
-        unit_list.sort(key=lambda unit: unit.node.position.x)
-        unit_list.sort(key=lambda unit: unit.node.position.y)
-        return unit_list
+    @property
+    def enemy_type(self) -> UnitType:
+        return UnitType.GOBLIN if isinstance(self, Elf) else UnitType.ELF   
 
     def simulate_round(self, unit_list: list["Unit"], graph: dict[Node, list[Node]]):
-        targets = self.identify_targets(unit_list)
-        if not targets:
+        target_list = self.identify_targets(unit_list)
+        if not target_list:
             raise NoTargetsRemaining
         
-        adjacent_targets = self.sort_units([t for t in targets 
-                                            if self.is_adjacent(t, graph)])
+        adjacent_targets = sort_units([t for t in target_list 
+                                       if self.is_adjacent(t, graph)])
         if adjacent_targets:
-            attack_target = adjacent_targets[0]
-            self.attack(attack_target)
+            self.attack(adjacent_targets[0])
             
         else:
-            self.move(graph)
-            adjacent_targets = self.sort_units([t for t in targets 
-                                                if self.is_adjacent(t, graph)])
+            self.move(target_list, graph)
+            adjacent_targets = sort_units([t for t in target_list 
+                                           if self.is_adjacent(t, graph)])
             if adjacent_targets:
-                attack_target = adjacent_targets[0]
-                self.attack(attack_target)
-            
-    def identify_targets(self, 
-                         unit_list: list["Unit"], 
-                         ) -> list["Unit"]:
-        ''' Each unit begins its turn by identifying all possible targets (enemy_type 
-        units). If no targets remain, combat ends.
+                self.attack(adjacent_targets[0])
 
-        Then, the unit identifies all of the open squares (.) that are in range 
-        of each target; these are the squares which are adjacent (immediately up, 
-        down, left, or right) to any target and which aren't already occupied by 
-        a wall or another unit. Alternatively, the unit might already be in range 
-        of a target. If the unit is not already in range of a target, and there are
-        no open squares which are in range of a target, the unit ends its turn. '''
+    def identify_targets(self, unit_list: list["Unit"]) -> list["Unit"]:
         match self.enemy_type:
             case UnitType.GOBLIN:
-                return [unit for unit in unit_list if isinstance(unit, Goblin)]
+                return [unit for unit in unit_list 
+                        if isinstance(unit, Goblin) and unit.hit_points > 0]
             case UnitType.ELF:
-                return [unit for unit in unit_list if isinstance(unit, Elf)]
-
-    def identify_target_squares(self, 
-                                target_list: list["Unit"],
-                                graph: dict[Node, list[Node]]
-                                ) -> list[Node]:
-        ...
+                return [unit for unit in unit_list 
+                        if isinstance(unit, Elf) and unit.hit_points > 0]
 
     def is_adjacent(self, target: "Unit", graph: dict[Node, list[Node]]) -> bool:
-        ...
+        return target.node in graph[self.node]
 
-    def move(self, target_squares: list[Node], graph: dict[Node, list[Node]]):
-        ''' To move, the unit first considers the squares that are in range and 
-        determines which of those squares it could reach in the fewest steps. A 
-        step is a single movement to any adjacent (immediately up, down, left, or 
-        right) open (.) square. Units cannot move into walls or other units. The 
-        unit does this while considering the current positions of units and does 
-        not do any prediction about where units will be later. If the unit cannot 
-        reach (find an open path to) any of the squares that are in range, it ends 
-        its turn. If multiple squares are in range and tied for being reachable in 
-        the fewest steps, the square which is first in reading order is chosen. 
+    def move(self, target_list: list["Unit"], graph: dict[Node, list[Node]]):
+        target_squares = self.identify_target_squares(target_list, graph)
+        next_node = self.find_next_node(target_squares, graph)
+        # print(f"Moving {self.unit_type.name} #{self.id} to {next_node}")
+        self.node = next_node      
 
-        The unit then takes a single step toward the chosen square along the shortest 
-        path to that square. If multiple steps would put the unit equally closer to 
-        its destination, the unit chooses the step which is first in reading order. 
-        (This requires knowing when there is more than one shortest path so that you 
-        can consider the first step of each such path.) '''
-        ...
+    def identify_target_squares(self, target_list: list["Unit"], 
+                                graph: dict[Node, list[Node]]) -> list[Node]:
+        return [node for target in target_list for node in graph[target.node]]
+
+    def find_next_node(self, target_squares: list[Node], 
+                       graph: dict[Node, list[Node]]) -> Node:
+        eligible_paths = [find_shortest_paths(self.node, target_square, graph) 
+                          for target_square in target_squares]
+        shortest_path_length = min(length for _, length in eligible_paths)
+        shortest_path_lists = [path_list for path_list, length in eligible_paths 
+                          if length == shortest_path_length]
+        shortest_paths = [path for path_list in shortest_path_lists for path in path_list]
+        if len(shortest_paths) == 1:
+            return shortest_paths[0].nodes[0]
+        else:
+            first_nodes = [path.nodes[0] for path in shortest_paths]
+            first_nodes_sorted = sort_nodes(first_nodes)
+            return first_nodes_sorted[0]
 
     def attack(self, target: "Unit"):
-        ''' After moving (or if the unit began its turn in range of a target), 
-        the unit attacks.
-
-        To attack, the unit first determines all of the targets that are in range 
-        of it by being immediately adjacent to it. If there are no such targets, 
-        the unit ends its turn. Otherwise, the adjacent target with the fewest hit
-        points is selected; in a tie, the adjacent target with the fewest hit points 
-        which is first in reading order is selected.
-
-        The unit deals damage equal to its attack power to the selected target, reducing 
-        its hit points by that amount. If this reduces its hit points to 0 or fewer, 
-        the selected target dies: its square becomes . and it takes no further turns. '''
-        ...
+        # print(f"{self.unit_type.name} #{self.id} ({self.node}) " + 
+            #   f"attacking {target.unit_type.name} #{target.id} ({target.node})")
+        target.hit_points -= self.attack_power
     
 
 class Elf(Unit):
@@ -179,22 +168,13 @@ class Game:
     units: list[Unit]
     rounds_completed: int = 0
 
-    def sort_nodes(self, node_list: list[Node]) -> list[Node]:
-        node_list.sort(key=lambda node: node.position.x)
-        node_list.sort(key=lambda node: node.position.y)
-        return node_list
-
-    def sort_units(self, unit_list: list[Unit]) -> list[Unit]:
-        unit_list.sort(key=lambda unit: unit.node.position.x)
-        unit_list.sort(key=lambda unit: unit.node.position.y)
-        return unit_list
-
     def sort_all_units(self) -> None:
-        self.units = self.sort_units(self.units)
+        self.units = sort_units(self.units)
 
     def simulate_combat(self):
         while True:
             self.sort_all_units()
+            unit_list = deepcopy(self.units)
             for unit in self.units:
                 try:
                     unit.simulate_round(self.units, self.graph)
@@ -202,29 +182,57 @@ class Game:
                     raise             
             self.rounds_completed += 1
 
-    def solve_part_one(self) -> int:
+    def solve_part_one(self) -> tuple[int, int, int]:
         try:
             self.simulate_combat()
         except NoTargetsRemaining:
-            return self.rounds_completed * sum(unit.hit_points for unit in self.units)
+            return (self.rounds_completed,
+                    sum(unit.hit_points for unit in self.units),
+                    (self.rounds_completed * sum(unit.hit_points 
+                                                for unit in self.units)))
 
-def find_shortest_path(start_node: Node, end_node: Node, graph: dict) -> int:
+
+
+def sort_units(unit_list: list[Unit]) -> list[Unit]:
+    unit_list.sort(key=lambda unit: unit.node.position.x)
+    unit_list.sort(key=lambda unit: unit.node.position.y)
+    return unit_list
+
+def sort_nodes(node_list: list[Node]) -> list[Node]:
+    node_list.sort(key=lambda node: node.position.x)
+    node_list.sort(key=lambda node: node.position.y)
+    return node_list
+
+
+
+def find_shortest_paths(start_node: Node, 
+                        end_node: Node, 
+                        graph: dict[Node, list[Node]]
+                        ) -> tuple[list[NodePath], int]:
     queue = deque([(start_node, [])])
 
     visited = set()
     visited.add(start_node)
 
+    shortest_path_length = 999999999
+    output_list = []
     while queue:
         node, path = queue.popleft()
         if node == end_node:
-            return len(path)
-        neighbors = graph[node]
+            if len(path) < shortest_path_length:
+                shortest_path_length = len(path)
+                output_list = [NodePath(path)]
+            elif len(path) == shortest_path_length:
+                output_list.append(NodePath(path))
+            else:
+                return (output_list, shortest_path_length)
+        neighbors = graph[node]  # NEED TO EXCLUDE NODES THAT HAVE ANOTHER UNIT ON THEM
         for neighbor in neighbors:
             if neighbor not in visited:
                 new_path = path + [neighbor]
                 queue.append((neighbor, new_path))
                 visited.add(neighbor)
-    return -1
+    return (output_list, shortest_path_length)
 
 def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
     output_dict: dict[Node, list[Node]] = {}
@@ -239,13 +247,16 @@ def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
         return output_list
     
     for node in node_list:
+        if node.node_type == NodeType.WALL:
+            continue
         neighbor_list = []
         for x, y in get_node_neighbor_coordinates(node):
             try:
                 neighbor_list.append(
                     next(node for node in node_list 
                         if node.position.x == x 
-                        and node.position.y == y))
+                        and node.position.y == y
+                        and node.node_type != NodeType.WALL))
             except StopIteration:
                 continue
         output_dict[node] = neighbor_list
@@ -280,15 +291,19 @@ def parse_data(data: str) -> tuple[list[Node], list[Unit]]:
     return (node_list, unit_list)
 
 def part_one_tests():
-    ...
+    for i, example in enumerate(TESTS_PART_ONE, start=1):
+        data, num_rounds, total_hp, outcome = example
+        test_num_rounds, test_total_hp, test_outcome = part_one(data)
+        print(f"Test #{i}: {test_outcome == outcome}",
+              f"({test_num_rounds} rounds, {test_total_hp} total HP, {test_outcome} outcome)")
 
 def part_one(data: str):
     node_list, unit_list = parse_data(data)
     graph = create_graph(node_list)
     game = Game(graph, unit_list)
 
-    for unit in game.units:
-        print(unit.enemy_type)
+    # for unit in game.units:
+    #     print(unit.enemy_type)
     
     return game.solve_part_one()
 
@@ -298,8 +313,8 @@ def part_two(data: str):
 
 
 def main():
-    # part_one_tests():
-    print(f"Part One (input):  {part_one(INPUT)}")
+    part_one_tests()
+    # print(f"Part One (input):  {part_one(INPUT)}")
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
