@@ -4,7 +4,6 @@ from enum import Enum, IntEnum
 from pathlib import Path
 from typing import NamedTuple
 
-from alive_progress import alive_bar
 from rich import print
 
 import advent_of_code as aoc
@@ -90,7 +89,9 @@ class Unit:
     def enemy_type(self) -> UnitType:
         return UnitType.GOBLIN if isinstance(self, Elf) else UnitType.ELF   
 
-    def execute_turn(self, unit_list: list["Unit"], graph: dict[Node, list[Node]], print_info: bool = False):
+    def execute_turn(self, unit_list: list["Unit"], 
+                     graph: dict[Node, list[Node]], 
+                     print_info: bool = False):
         other_units = [unit for unit in unit_list 
                        if unit.hit_points > 0 and unit.id != self.id]
         target_list = self.identify_targets(unit_list)
@@ -133,7 +134,8 @@ class Unit:
         prev_node = self.node
         next_node, target_node = self.find_next_node(target_squares, other_unit_nodes, graph)
         if print_info:
-            print(f"Moving {self.unit_type.name} #{self.id} from {prev_node} to {next_node} (target: {target_node})")
+            print(f"Moving {self.unit_type.name} #{self.id} from {prev_node}",
+                  f"to {next_node} (target: {target_node})")
         self.node = next_node      
 
     def identify_target_squares(self, target_list: list["Unit"], other_unit_nodes: list[Node],
@@ -162,28 +164,21 @@ class Unit:
             return (next_node, target_node)
 
     def get_winning_start_and_target(self, path_list: list[NodePath]) -> tuple[Node, Node]:
-
-        '''
-        the issue is probably here:
-        https://www.reddit.com/r/adventofcode/comments/a6g4nf/comment/ebuos5j/
-        '''
-
-
-
-        
-        first_to_target_dict = {path.nodes[0]: path.nodes[-1] for path in path_list}
-        target_to_first_dict = {path.nodes[-1]: path.nodes[0] for path in path_list}
-        
-        target_nodes = [path.nodes[0] for path in path_list]
+        target_to_first_dict = {}
+        for path in path_list:
+            first = path.nodes[0]
+            target = path.nodes[-1]
+            target_to_first_dict[target] = [path.nodes[0] for path in path_list
+                                           if path.nodes[0] == first]
+                    
+        target_nodes = [path.nodes[-1] for path in path_list]
         target_nodes_sorted = sort_nodes(target_nodes)
         winning_target_node = target_nodes_sorted[0]
 
-        first_nodes = [path.nodes[0] for path in path_list]
+        first_nodes = target_to_first_dict[winning_target_node]
         first_nodes_sorted = sort_nodes(first_nodes)
         winning_first_node = first_nodes_sorted[0]
-
-
-        winning_target_node = path_dict[winning_first_node]
+        
         return (winning_first_node, winning_target_node)
 
     def attack(self, adjacent_targets: list["Unit"], print_info: bool = False):
@@ -191,7 +186,8 @@ class Unit:
             adjacent_targets = sort_units(adjacent_targets)
             adjacent_targets.sort(key=lambda unit: unit.hit_points)
             if print_info:
-                if (len(adjacent_targets) > 2 and adjacent_targets[0].hit_points == adjacent_targets[1].hit_points):
+                if (len(adjacent_targets) > 2 
+                    and adjacent_targets[0].hit_points == adjacent_targets[1].hit_points):
                     print(f"Adjacent Targets: {adjacent_targets}")
                     print(f"Target: {adjacent_targets[0]}")
                     print()
@@ -258,7 +254,7 @@ class Game:
     def remove_dead_units(self):
         self.units = [unit for unit in self.units if unit.hit_points > 0]
 
-    def solve_part_one(self, print_info: bool = False) -> tuple[int, int, int]:   # type: ignore
+    def solve_part_one(self, print_info: bool = False) -> tuple[int, int, int]: # type: ignore
         try:
             self.simulate_combat(print_info=print_info)
         except NoTargetsRemaining:
@@ -278,7 +274,6 @@ class Game:
             remaining_elves = len([unit for unit in self.units 
                                    if isinstance(unit, Elf) and unit.hit_points > 0])
             no_elves_died = remaining_elves == num_elves_at_start
-            print(self)
             return (no_elves_died,
                     elf_attack,
                     self.rounds_completed,
@@ -301,7 +296,8 @@ class Game:
         min_x, min_y, max_x, max_y = self.min_max
         unit_positions = [unit.node.position for unit in self.units
                           if unit.hit_points > 0]
-        wall_positions = [n.position for n in self.graph.keys() if n.node_type == NodeType.WALL]
+        wall_positions = [n.position for n in self.graph.keys() 
+                          if n.node_type == NodeType.WALL]
 
         for y in range(min_y, max_y+1):
             row = ''
@@ -309,7 +305,8 @@ class Game:
                 pos = Position(x, y)
                 if pos in unit_positions:
                     unit = next(unit for unit in self.units 
-                                if unit.hit_points > 0 and unit.node.position == pos)
+                                if unit.hit_points > 0 
+                                and unit.node.position == pos)
                     match unit.unit_type:
                         case UnitType.GOBLIN:
                             row += 'G'
@@ -361,7 +358,8 @@ def find_shortest_paths(start_node: Node,
                     visited.add(neighbor)
                     
     assert len([path for path in output_list if len(path) < shortest_path_length]) == 0
-    shortest_paths = [NodePath(path) for path in output_list if len(path) == shortest_path_length]
+    shortest_paths = [NodePath(path) for path in output_list 
+                      if len(path) == shortest_path_length]
     return (shortest_paths, shortest_path_length)
 
 def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
@@ -435,12 +433,9 @@ def part_one_tests(print_info: bool = False):
 def part_two_tests(print_info: bool = False):
     for i, example in enumerate(TESTS_PART_TWO, start=1):
         data, elf_attack, outcome = example
-        no_elves_died, test_elf_attack, test_num_rounds, test_total_hp, test_outcome = part_two(data, print_info=print_info)
+        no_elves_died, test_elf_attack, _, _, test_outcome = part_two(data, print_info=print_info)
         success = no_elves_died and test_elf_attack == elf_attack and test_outcome == outcome
-        print(f"Test #{i}: {success} ({test_elf_attack}, {test_outcome}) (should be {elf_attack}, {outcome})",
-            #   f"({test_num_rounds} rounds, {test_total_hp} total HP, {test_outcome} outcome)",
-            #   f"(should be {num_rounds}, {total_hp}, {outcome})"
-            )
+        print(f"Test #{i}: {success} ({test_elf_attack}, {test_outcome}) (should be {elf_attack}, {outcome})")
 
         if print_info:
             print()
@@ -471,44 +466,11 @@ def part_two(data: str, print_info: bool = False, guess: int = 0):
             return response
         x += 1
 
-'''
-Part Two (input):  (False, 4, 84, 2140, 179760)
-Part Two (input):  (False, 5, 79, 1770, 139830)
-Part Two (input):  (False, 6, 82, 1324, 108568)
-Part Two (input):  (False, 7, 88, 738, 64944)
-Part Two (input):  (False, 8, 96, 130, 12480)
-Part Two (input):  (False, 9, 82, 449, 36818)
-Part Two (input):  (False, 10, 74, 601, 44474)
-Part Two (input):  (False, 11, 73, 714, 52122)
-Part Two (input):  (False, 12, 59, 832, 49088)
-Part Two (input):  (False, 13, 56, 913, 51128)
-Part Two (input):  (False, 14, 53, 991, 52523)
-Part Two (input):  (False, 15, 50, 1095, 54750)
-Part Two (input):  (False, 16, 47, 1194, 56118)
-Part Two (input):  (False, 17, 44, 1314, 57816)
-Part Two (input):  (False, 18, 44, 1314, 57816)
-Part Two (input):  (True, 19, 40, 1367, 54680)
-Part Two (input):  (True, 20, 41, 1400, 57400)
-Part Two (input):  (True, 21, 41, 1400, 57400)
-Part Two (input):  (True, 22, 41, 1400, 57400)
-Part Two (input):  (True, 23, 38, 1475, 56050)
-Part Two (input):  (True, 24, 38, 1475, 56050)
-Part Two (input):  (True, 25, 34, 1541, 52394)
-'''
-
 def main():
-    # part_one_tests(print_info=False)
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # part_two_tests(print_info=False)
+    part_one_tests(print_info=False)
+    print(f"Part One (input):  {part_one(INPUT)}")
+    part_two_tests(print_info=False)
+    print(f"Part Two (input):  {part_two(INPUT, guess=19)}")
 
-    for guess in range(18, 19):
-        print(f"Part Two (input):  {part_two(INPUT, guess=guess)}")
-
-    random_tests()
-
-def random_tests():
-    ...
-
-       
 if __name__ == '__main__':
     main()
