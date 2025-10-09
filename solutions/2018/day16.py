@@ -36,12 +36,13 @@ class Computer:
     instructions: Optional[list[Instruction]] = field(repr=False, 
                                               default=None)
     register_dict: dict[int, int] = field(init=False)
+    opcode_list: list[Callable] = field(default_factory=list)
     opcode_dict: dict[int, Callable] = field(repr=False, 
                                              default_factory=dict)
 
     def __post_init__(self):
         self.register_dict = {num: 0 for num in range(4)}
-        self.opcode_list: list[Callable] = [
+        self.opcode_list = [
             self.addr, self.addi, self.mulr, self.muli, self.banr, self.bani, 
             self.borr, self.bori, self.setr, self.seti, self.gtir, self.gtri, 
             self.gtrr, self.eqir, self.eqri, self.eqrr
