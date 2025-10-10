@@ -1,25 +1,9 @@
 import datetime as dt
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
+from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from enum import Enum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import NamedTuple
 from rich import print
 
 import advent_of_code as aoc
@@ -42,66 +26,49 @@ class WakefulnessState(Enum):
 
 class Event(NamedTuple):
     guard_id: int
-    ts: dt.datetime
+    dt: dt.datetime
     event_type: EventType
 
     def __repr__(self) -> str:
-        return (f"#{self.guard_id} ({self.ts.strftime('%Y-%m-%d %H:%M')}) " + 
+        return (f"#{self.guard_id} ({self.dt.strftime('%Y-%m-%d %H:%M')}) " + 
                 f"({self.event_type.name})")
+
+class NoSleepiestMinute(Exception):
+    pass
 
 @dataclass
 class Guard:
     id: int
     event_list: list[Event] = field(repr=False)
     minutes_asleep: int = field(init=False)
-    tick_tock_dict: dict[dt.datetime, WakefulnessState] = field(init=False, repr=False)
-    sleepiest_minute: int = field(init=False)
+    sleep_dict: defaultdict[int, int] = field(init=False)
 
     def __post_init__(self):
+        self.sleep_dict = defaultdict(int)
         self.minutes_asleep = self.get_total_time_asleep()
-        self.tick_tock_dict = self.make_tick_tock_dict()
-        if self.minutes_asleep > 0:
-            self.sleepiest_minute = self.get_sleepiest_minute()
         
     def get_total_time_asleep(self) -> int:
-        sleeps = [event.ts for event in self.event_list
+        sleeps = [event.dt for event in self.event_list
                   if event.event_type == EventType.SLEEP]
-        wakeups = [event.ts for event in self.event_list
+        wakeups = [event.dt for event in self.event_list
                   if event.event_type == EventType.WAKE]
 
         total = 0
         for sleep, wake in zip(sleeps, wakeups):
             total += wake.minute - sleep.minute
+            for min in range(sleep.minute, wake.minute):
+                self.sleep_dict[min] += 1
+
         return total
 
-    def make_tick_tock_dict(self) -> dict[dt.datetime, WakefulnessState]:
-        output_dict = {}
-        current_state = WakefulnessState.AWAKE
-        sorted_event_list = sorted(self.event_list, key=lambda x: x.ts)
-        for i, event in enumerate(sorted_event_list):
-            if i >= len(sorted_event_list) - 1:
-                break
-            match event.event_type:
-                case EventType.START | EventType.WAKE:
-                    current_state = WakefulnessState.AWAKE
-                case EventType.SLEEP:
-                    current_state = WakefulnessState.ASLEEP
-            if event.ts.hour == 0:
-                min_range = sorted_event_list[i+1].ts.minute - event.ts.minute
-                for x in range(min_range+1):
-                    output_dict[event.ts + dt.timedelta(minutes=x)] = current_state
-        return output_dict
-
-    def get_sleepiest_minute(self) -> int:
-        output_dict = defaultdict(int)
-        for ts, state in self.tick_tock_dict.items():
-            if state == WakefulnessState.ASLEEP:
-                output_dict[ts.minute] += 1
-        if self.id == 2917:
-            print(output_dict)
-        sorted_list = sorted(output_dict.items(), 
-                             key=lambda x: x[1], reverse=True)
-        return sorted_list[0][0]
+    def get_sleepiest_minute(self) -> tuple[int, int]:
+        max_frequency = max(v for v in self.sleep_dict.values())
+        mins_at_max = [m for m in self.sleep_dict.keys()
+                       if self.sleep_dict[m] == max_frequency]
+        if len(mins_at_max) > 1:
+            raise NoSleepiestMinute
+        sleepiest_minute = mins_at_max[0]
+        return (sleepiest_minute, max_frequency)
 
 def make_guards(event_list: list[Event]) -> list[Guard]:
     all_guard_ids = set([event.guard_id for event in event_list])
@@ -141,30 +108,37 @@ def part_one(data: str):
     event_list = parse_data(data)
     guard_list = make_guards(event_list)
     guard_list = sorted(guard_list, key=lambda g: g.minutes_asleep, reverse=True)
-    print(guard_list)
     sleepiest_guard = guard_list[0]
-    print(sleepiest_guard)
-    # print(sleepiest_guard.tick_tock_dict)
-    # print(sleepiest_guard.event_list)
-    # print(sleepiest_guard.get_sleepiest_minute())
-    return sleepiest_guard.sleepiest_minute * sleepiest_guard.id
+    sleepiest_minute, _ = sleepiest_guard.get_sleepiest_minute()
+    return sleepiest_minute * sleepiest_guard.id
+
+def find_sleepiest_minute_all_guards(guard_list: list[Guard]) -> int:
+    winning_guard_id = -1
+    winning_minute = -1
+    winning_frequency = -1
+
+    for guard in guard_list:
+        if guard.minutes_asleep > 0:
+            try:
+                sleepiest_minute, max_frequency = guard.get_sleepiest_minute()
+                if max_frequency > winning_frequency:
+                    winning_guard_id = guard.id
+                    winning_minute = sleepiest_minute
+                    winning_frequency = max_frequency
+            except NoSleepiestMinute:
+                continue
+    return winning_guard_id * winning_minute
 
 def part_two(data: str):
-    __ = parse_data(data)
-
-
+    event_list = parse_data(data)
+    guard_list = make_guards(event_list)
+    return find_sleepiest_minute_all_guards(guard_list)
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-
-       
 if __name__ == '__main__':
     main()
