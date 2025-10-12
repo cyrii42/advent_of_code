@@ -1,5 +1,6 @@
 import functools
 import hashlib
+import heapq
 import itertools
 import json
 import math
@@ -10,7 +11,7 @@ import sys
 from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from enum import Enum, Flag, IntEnum, StrEnum, auto
 from pathlib import Path
 from string import ascii_letters, ascii_lowercase, ascii_uppercase
 from typing import Callable, Generator, NamedTuple, Optional, Self
@@ -36,6 +37,18 @@ class Direction(IntEnum):
     DOWN = 2
     LEFT = 3
 
+    @property
+    def left(self) -> "Direction":
+        return Direction((self.value -1 ) % 4)
+
+    @property
+    def right(self) -> "Direction":
+        return Direction((self.value + 1) % 4)
+
+    @property
+    def opposite(self) -> "Direction":
+        return Direction((self.value + 2) % 4)
+        
 DIRECTION_DELTAS = {
     Direction.UP: (0, -1),
     Direction.RIGHT: (1, 0),
@@ -43,15 +56,23 @@ DIRECTION_DELTAS = {
     Direction.LEFT: (-1, 0),
 }
 
-class NodeType(Enum):
-    SAND = 0
-    CLAY = 1
-    WATER_FLOWING = 3
-    WATER_SETTLED = 4
+class NodeType(Flag):
+    SOURCE = auto()
+    SAND = auto()
+    CLAY = auto()
+    WATER_FLOWING = auto()
+    WATER_SETTLED = auto()
+    WATER = WATER_FLOWING | WATER_SETTLED
 
 class Position(NamedTuple):
     x: int
     y: int
+
+    def __lt__(self, other):
+        return self.y < other.y
+
+    def __gt__(self, other):
+        return self.y > other.y
 
 WATER_SPRING = Position(x=500, y=0)
 
@@ -64,101 +85,120 @@ class Node:
         return (f"{self.node_type.name} (x={self.position.x}, " +
                 f"y={self.position.y})")
 
-# @dataclass
-# class Water:
-#     position: Position
-#     settled: bool = False
-
-#     def settle(self) -> None:
-#         self.settled = True
-
 @dataclass
 class GroundwaterModel:
     position_dict: defaultdict[Position, NodeType]
-    # graph: dict[Node, list[Node]]
-    # water_list: list[Water] = field(default_factory=list)
+    sources: list[Position] = field(default_factory=list)
+    min_y: int = field(init=False)
+    max_y: int = field(init=False)
+    min_x: int = field(init=False)
+    max_x: int = field(init=False)
+
+    def __post_init__(self):
+        self.min_y = min(pos.y for pos, node_type in self.position_dict.items()
+                         if node_type == NodeType.CLAY)
+        self.max_y = max(pos.y for pos, node_type in self.position_dict.items()
+                         if node_type == NodeType.CLAY)
+        self.min_x = min(pos.x for pos, node_type in self.position_dict.items()
+                         if node_type == NodeType.CLAY)
+        self.max_x = max(pos.x for pos, node_type in self.position_dict.items()
+                         if node_type == NodeType.CLAY)
 
     @property
-    def min_y(self):
-        return min(pos.y for pos, node_type in self.position_dict.items()
-                   if node_type == NodeType.CLAY)
+    def num_water_nodes(self) -> int:
+        return len([pos for pos, node_type in self.position_dict.items()
+                    if pos.y >= self.min_y
+                    and pos.y <= self.max_y
+                    and node_type in [NodeType.WATER_FLOWING, 
+                                      NodeType.WATER_SETTLED]])
 
-    @property
-    def max_y(self):
-        return max(pos.y for pos, node_type in self.position_dict.items()
-                   if node_type == NodeType.CLAY)
+    def get_type(self, pos: Position) -> NodeType:
+        return self.position_dict[pos]
 
-    @property
-    def min_x(self):
-        return min(pos.x for pos, node_type in self.position_dict.items()
-                   if node_type == NodeType.CLAY)
-
-    @property
-    def max_x(self):
-        return max(pos.x for pos, node_type in self.position_dict.items()
-                   if node_type == NodeType.CLAY)
-
+    def set_type(self, pos: Position, node_type: NodeType) -> None:
+        self.position_dict[pos] = node_type
+    
+    @staticmethod
+    def get_position(pos: Position, direction: Direction):
+        dx, dy = DIRECTION_DELTAS[direction]
+        return Position(pos.x+dx, pos.y+dy)
 
     def model_water_flow(self):
-        '''
-        https://en.wikipedia.org/wiki/Flood_fill
-        Flood-fill (node):
-        1. Set Q to the empty queue or stack.
-        2. Add node to the end of Q.
-        3. While Q is not empty:
-        4.   Set n equal to the first element of Q.
-        5.   Remove first element from Q.
-        6.   If n is Inside:
-                Set the n
-                Add the node to the west of n to the end of Q.
-                Add the node to the east of n to the end of Q.
-                Add the node to the north of n to the end of Q.  DON'T GO UP!!!
-                Add the node to the south of n to the end of Q.
-        7. Continue looping until Q is exhausted.
-        8. Return.
-        '''
-        ...
-        spring_x, spring_y = WATER_SPRING
-        start_pos = Position(spring_x, max(spring_y, self.min_y))
-        start_type = self.position_dict[start_pos]
-        start_node = Node(start_pos, start_type)
-        queue = deque([start_node])
+        ''' https://gist.github.com/CameronAavik/f052fdca87715429e28b3fdfce243298 '''
 
-        while queue:
-            node = queue.popleft()
-            match node.node_type:
-                case NodeType.CLAY:
-                    continue
-                case NodeType.SAND:
-                    ...
-                case NodeType.WATER_FLOWING:
-                    ...
-                case NodeType.WATER_SETTLED:
-                    ...
+        self.sources.append(WATER_SPRING)
 
-        return len([pos for pos, node_type in self.position_dict.items()
-                    if self.min_y <= pos.y <= self.max_y
-                    and node_type == NodeType.WATER_SETTLED])
+        while self.sources:
+            # get the latest water source and ensure that it hasn't been replaced
+            # with still water
+            pos = self.sources.pop()
+            if self.get_type(pos) == NodeType.WATER_SETTLED:
+                continue
+
+            # follow the stream down by incrementing the y variable. Once we hit a
+            # wall we then fill it up a level at a time by searching for a wall or
+            # an overflow both left and right. If there were no overflows, fill
+            # with still water, else fill with moving water
+            pos = self.get_position(pos, Direction.DOWN)
+            while pos.y <= self.max_y:
+                match self.get_type(pos):
+                    case NodeType.SAND:
+                        self.set_type(pos, NodeType.WATER_FLOWING)
+                        pos = self.get_position(pos, Direction.DOWN)
+                    case NodeType.CLAY | NodeType.WATER_SETTLED:
+                        pos = self.get_position(pos, Direction.UP)
+                        left_pos, left_overflow = self.search(pos, Direction.LEFT)
+                        right_pos, right_overflow = self.search(pos, Direction.RIGHT)
+                        for x in range(left_pos.x, right_pos.x + 1):
+                            if left_overflow or right_overflow:
+                                water_type = NodeType.WATER_FLOWING
+                            else:
+                                water_type = NodeType.WATER_SETTLED
+                            self.set_type(Position(x, pos.y), water_type)
+                    case NodeType.WATER_FLOWING:
+                        break
+
+    def search(self, pos: Position, 
+               direction: Direction
+               ) -> tuple[Position, bool]:
+        while True:
+            pos_below = self.get_position(pos, Direction.DOWN)
+            # if we hit a wall, go back 1 and return no overflow
+            if self.get_type(pos) == NodeType.CLAY:
+                return (self.get_position(pos, direction.opposite), False)
+            
+            # if the tile below is empty, then we have overflowed; 
+            # create a new water source
+            if self.get_type(pos_below) == NodeType.SAND:
+                self.sources.append(pos)
+                return (pos, True)
+            
+            # if the current tile and the tile below are both streams, then we 
+            # have overflowed into an existing stream; no need to add a new source
+            if (self.get_type(pos) == NodeType.WATER_FLOWING
+                and self.get_type(pos_below) == NodeType.WATER_FLOWING):
+                return (pos, True)
+            
+            pos = self.get_position(pos, direction)
 
 
     def print_diagram(self):
-        water_positions = [w.position for w in self.water_list]
-        clay_positions = [n.position for n in self.graph.keys() 
-                          if n.node_type == NodeType.CLAY]
-
         for y in range(self.min_y-1, self.max_y+1):
             row = ''
             for x in range(self.min_x, self.max_x+2):
                 pos = Position(x, y)
                 if pos == WATER_SPRING:
                     row += '+'
-                elif pos in water_positions:
-                    water = next(w for w in self.water_list if w.position == pos)
-                    row += '~' if water.settled else '|'
-                elif pos in clay_positions:
-                    row += '#'
                 else:
-                    row += '.'
+                    match self.position_dict[pos]:
+                        case NodeType.SAND:
+                            row += '.'
+                        case NodeType.CLAY:
+                            row += '#'
+                        case NodeType.WATER_FLOWING:
+                            row += '|'
+                        case NodeType.WATER_SETTLED:
+                            row += '~'
             print(row)
    
 def create_graph(pos_dict: dict[Position, NodeType]) -> dict[Node, list[Node]]:
@@ -203,7 +243,7 @@ def create_node_list(clay_positions: list[Position]) -> list[Node]:
             output_list.append(Node(position, node_type))
     return output_list
             
-def parse_data(data: str) -> dict[Position, NodeType]:
+def parse_data(data: str) -> defaultdict[Position, NodeType]:
     line_list = data.splitlines()
     clay_position_list = []
     output_dict = defaultdict(lambda: NodeType.SAND)
@@ -228,13 +268,15 @@ def parse_data(data: str) -> dict[Position, NodeType]:
 
 def part_one(data: str):
     position_dict = parse_data(data)
-    graph = create_graph(position_dict)
-    model = GroundwaterModel(graph)
-    print(model.min_x, model.min_y)
-    print(model.max_x, model.max_y)
+    model = GroundwaterModel(position_dict)
     if data == EXAMPLE:
         model.print_diagram()
-
+    model.model_water_flow()
+    if data == EXAMPLE:
+        print()
+        model.print_diagram()
+    return model.num_water_nodes
+ 
 def part_two(data: str):
     ...
 
@@ -249,7 +291,8 @@ def main():
     random_tests()
 
 def random_tests():
-    ...
+    d = Direction.RIGHT
+    print(d.left.name)
 
        
 if __name__ == '__main__':
