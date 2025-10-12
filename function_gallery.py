@@ -3,6 +3,7 @@ from typing import NamedTuple
 from dataclasses import dataclass, field
 from collections import deque
 
+### FOUR DIRECTIONS
 class Direction(IntEnum):
     UP = 0
     RIGHT = 1
@@ -11,23 +12,79 @@ class Direction(IntEnum):
 
     @property
     def left(self) -> "Direction":
-        return Direction((self.value -1 ) % 4)
+        return Direction((self.value -1 ) % len(Direction))
 
     @property
     def right(self) -> "Direction":
-        return Direction((self.value + 1) % 4)
+        return Direction((self.value + 1) % len(Direction))
 
     @property
     def opposite(self) -> "Direction":
-        return Direction((self.value + 2) % 4)
+        num_dirs = len(Direction)
+        return Direction((self.value + num_dirs // 2) % num_dirs)
+
+
+### EIGHT DIRECTIONS
+class Direction(IntEnum):
+    NORTH = 0
+    NORTHEAST = 1
+    EAST = 2
+    SOUTHEAST = 3
+    SOUTH = 4
+    SOUTHWEST = 5
+    WEST = 6
+    NORTHWEST = 7
+
+    @property
+    def left(self) -> "Direction":
+        return Direction((self.value - 1) % len(Direction))
+
+    @property
+    def right(self) -> "Direction":
+        return Direction((self.value + 1) % len(Direction))
+
+    @property
+    def opposite(self) -> "Direction":
+        num_dirs = len(Direction)
+        return Direction((self.value + num_dirs // 2) % num_dirs)
+
 
 ## for infinite positive grid beginning at upper left
-DIRECTION_DELTAS = {
+DIRECTION_DELTAS = {      # ROW, COL
     Direction.UP: (-1, 0),
     Direction.RIGHT: (0, 1),
     Direction.DOWN: (1, 0),
     Direction.LEFT: (0, -1),
 }
+DIRECTION_DELTAS = {      # X, Y
+    Direction.UP: (0, -1),
+    Direction.RIGHT: (1, 0),
+    Direction.DOWN: (0, 1),
+    Direction.LEFT: (-1, 0),
+}
+
+DIRECTION_DELTAS = {      # ROW, COL
+    Direction.NORTH: (-1, 0),
+    Direction.NORTHEAST: (-1, 1),
+    Direction.EAST: (0, 1),
+    Direction.SOUTHEAST: (1, 1),
+    Direction.SOUTH: (1, 0),
+    Direction.SOUTHWEST: (1, -1),
+    Direction.WEST: (0, -1),
+    Direction.NORTHWEST: (-1, -1)
+}
+
+DIRECTION_DELTAS = {      # X, Y
+    Direction.NORTH: (0, -1),
+    Direction.NORTHEAST: (1, -1),
+    Direction.EAST: (1, 0),
+    Direction.SOUTHEAST: (1, 1),
+    Direction.SOUTH: (0, 1),
+    Direction.SOUTHWEST: (-1, 1),
+    Direction.WEST: (-1, 0),
+    Direction.NORTHWEST: (-1, 1)
+}
+
 
 class Point(NamedTuple):
     row: int
