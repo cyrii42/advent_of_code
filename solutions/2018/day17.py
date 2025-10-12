@@ -1,25 +1,9 @@
-import functools
-import hashlib
-import heapq
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
+from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum, Flag, IntEnum, StrEnum, auto
+from enum import Flag, IntEnum, auto
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
+from typing import NamedTuple
 
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -111,6 +95,13 @@ class GroundwaterModel:
                     and pos.y <= self.max_y
                     and node_type in [NodeType.WATER_FLOWING, 
                                       NodeType.WATER_SETTLED]])
+
+    @property
+    def num_settled_water_nodes(self) -> int:
+        return len([pos for pos, node_type in self.position_dict.items()
+                    if pos.y >= self.min_y
+                    and pos.y <= self.max_y
+                    and node_type == NodeType.WATER_SETTLED])
 
     def get_type(self, pos: Position) -> NodeType:
         return self.position_dict[pos]
@@ -266,7 +257,7 @@ def parse_data(data: str) -> defaultdict[Position, NodeType]:
     output_dict.update({pos: NodeType.CLAY for pos in clay_position_list})
     return output_dict
 
-def part_one(data: str):
+def solve(data: str):
     position_dict = parse_data(data)
     model = GroundwaterModel(position_dict)
     if data == EXAMPLE:
@@ -275,25 +266,15 @@ def part_one(data: str):
     if data == EXAMPLE:
         print()
         model.print_diagram()
-    return model.num_water_nodes
+    print(f"Part One:  {model.num_water_nodes}")
+    print(f"Part Two:  {model.num_settled_water_nodes}")
  
-def part_two(data: str):
-    ...
-
-
-
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print("EXAMPLE:")
+    solve(EXAMPLE)
+    print()
+    print("INPUT:")
+    solve(INPUT)
 
-    random_tests()
-
-def random_tests():
-    d = Direction.RIGHT
-    print(d.left.name)
-
-       
 if __name__ == '__main__':
     main()
