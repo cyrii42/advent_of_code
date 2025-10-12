@@ -9,6 +9,18 @@ class Direction(IntEnum):
     DOWN = 2
     LEFT = 3
 
+    @property
+    def left(self) -> "Direction":
+        return Direction((self.value -1 ) % 4)
+
+    @property
+    def right(self) -> "Direction":
+        return Direction((self.value + 1) % 4)
+
+    @property
+    def opposite(self) -> "Direction":
+        return Direction((self.value + 2) % 4)
+
 ## for infinite positive grid beginning at upper left
 DIRECTION_DELTAS = {
     Direction.UP: (-1, 0),
