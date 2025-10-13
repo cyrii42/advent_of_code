@@ -1,24 +1,8 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import re
-import sys
-from collections import defaultdict, deque
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
+from dataclasses import dataclass
+from enum import Enum, IntEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
+from typing import NamedTuple
 
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
 from rich import print
 
 import advent_of_code as aoc
@@ -124,35 +108,41 @@ class CollectionArea:
     def set_type(self, pos: Point, acre_type: AcreType) -> None:
         self.acre_dict[pos] = acre_type
 
-    # def validate_position(self, pos: Point) -> bool:
-    #     return (pos.x >= 0 and pos.x <= self.max_x 
-    #             and pos.y >= 0 and pos.y <= self.max_y)
-
     @staticmethod
     def get_position(pos: Point, direction: Direction):
         dx, dy = DIRECTION_DELTAS[direction]
         return Point(pos.x+dx, pos.y+dy)
 
     def tick(self):
-        last_minute_dict = deepcopy(self.acre_dict)
-        for pos in last_minute_dict:
+        next_minute_dict = {}
+        for pos in self.acre_dict:
             surrounding_types = self.get_surrounding_types(pos)
-            print(f"{pos} ({last_minute_dict[pos]})")
-            print(surrounding_types)
             num_trees = len([t for t in surrounding_types 
                             if t == AcreType.TREES])
             num_lumberyards = len([t for t in surrounding_types 
                                    if t == AcreType.LUMBERYARD])
-            match last_minute_dict[pos]:
+            match self.acre_dict[pos]:
                 case AcreType.OPEN:
                     if num_trees >= 3:
-                        self.set_type(pos, AcreType.TREES)
+                        next_minute_dict[pos] = AcreType.TREES
+                    else:
+                        next_minute_dict[pos] = AcreType.OPEN
                 case AcreType.TREES:
                     if num_lumberyards >= 3:
-                        self.set_type(pos, AcreType.LUMBERYARD)
+                        next_minute_dict[pos] = AcreType.LUMBERYARD
+                    else:
+                        next_minute_dict[pos] = AcreType.TREES
                 case AcreType.LUMBERYARD:
-                    if num_lumberyards == 0 and num_trees == 0:
-                        self.set_type(pos, AcreType.OPEN)
+                    if num_lumberyards >= 1 and num_trees >= 1:
+                        next_minute_dict[pos] = AcreType.LUMBERYARD
+                    else:
+                        next_minute_dict[pos] = AcreType.OPEN
+        self.acre_dict = next_minute_dict
+
+    def run_simulation(self, num_minutes: int = 10):
+        for _ in range(num_minutes):
+            self.tick()
+        return self.num_lumberyards * self.num_trees
 
     def get_surrounding_types(self, pos: Point) -> list[AcreType]:
         output_list = []
@@ -178,33 +168,6 @@ class CollectionArea:
                     case _:
                         row += "?"
             print(row)
-            
-
-def create_graph(node_list: list[Node]) -> dict[Point, list[Node]]:
-    output_dict: dict[Point, list[Node]] = {}
-
-    def get_node_neighbor_coordinates(node: Node) -> list[Point]:
-        x, y = node.position
-
-        output_list = []
-        for dir in Direction:
-            dx, dy = DIRECTION_DELTAS[dir]
-            output_list.append(Point(x + dx, y + dy))
-        return output_list
-    
-    for node in node_list:
-        neighbor_list = []
-        for x, y in get_node_neighbor_coordinates(node):
-            try:
-                neighbor_list.append(
-                    next(node for node in node_list 
-                        if node.position.x == x 
-                        and node.position.y == y))
-            except StopIteration:
-                continue
-        output_dict[node.position] = neighbor_list
-        
-    return output_dict
 
 def parse_data(data: str) -> dict[Point, AcreType]:
     line_list = data.splitlines()
@@ -227,37 +190,36 @@ def parse_data(data: str) -> dict[Point, AcreType]:
 def part_one(data: str):
     acre_dict = parse_data(data)
     collection_area = CollectionArea(acre_dict)
-
-    collection_area.print_diagram()
-
-    collection_area.tick()
-    
-    # print()
-    # for _ in range(2):
-    #     collection_area.tick()
-    #     collection_area.print_diagram()
-    #     print()
-
-    
-    return collection_area.num_lumberyards * collection_area.num_trees
-    print(graph)
+    return collection_area.run_simulation()
 
 def part_two(data: str):
-    __ = parse_data(data)
+    acre_dict = parse_data(data)
+    collection_area = CollectionArea(acre_dict)
 
+    answers = set()
+    cycle_steps = []
+    for i in range(0, 10_000):
+        collection_area.tick()
+        answer = collection_area.num_lumberyards * collection_area.num_trees
+        if answer in answers:
+            if i >= 525 and i < 580:
+                cycle_steps.append(answer)
+            if i > 580:
+                break
+            # if i > 1000:
+            #     print(answer)
+            #     print(cycle_steps[(i - 515) % 27])
+            #     print()
+            # if i > 1020:
+            #     break
+        answers.add(answer)
 
+    return cycle_steps[(1_000_000_000 - 515) % 27]
 
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part Two (input):  {part_two(INPUT)}")
 
-    random_tests()
-
-def random_tests():
-    ...
-
-       
 if __name__ == '__main__':
     main()
