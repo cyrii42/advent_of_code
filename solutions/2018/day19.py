@@ -1,4 +1,4 @@
-from collections import defaultdict
+import itertools
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, NamedTuple
@@ -233,6 +233,7 @@ class Computer:
         self.set_register_value(c, output_value)
 
 
+
 def parse_test(test_str: str) -> Instruction:
     parts = test_str.split(' ')
     opcode = parts[0]
@@ -253,12 +254,65 @@ def part_one(data: str):
     comp.execute_instructions()
     return comp.register_dict[0]
 
+'''
+# ip 2              # reg_2 = pointer register
+
+0  addi 2 16 2      # reg_2 = reg_2 + 16 (JUMP to 17)
+
+MAIN
+1  seti 1 1 1       # reg_1 = 1    
+2  seti 1 4 3       # reg_3 = 1
+3  mulr 1 3 5       # reg_5 = reg_1 * reg_3
+4  eqrr 5 4 5       # reg_5 = 1 if reg_5 == reg_4 else 0
+5  addr 5 2 2       # reg_2 = reg_5 + reg_2
+6  addi 2 1 2       # reg_2 += 1
+7  addr 1 0 0       # reg_0 = reg_1 + reg_0
+8  addi 3 1 3       # reg_3 += 1
+9  gtrr 3 4 5       # reg_5 = 1 if reg_3 > reg_4 else 0
+10 addr 2 5 2       # reg_2 = reg_2 + reg_5
+11 seti 2 4 2       # reg_2 = 2
+12 addi 1 1 1       # reg_1 += 1
+13 gtrr 1 4 5       # reg_5 = 1 if reg_1 > reg_4 else 0
+14 addr 5 2 2       # reg_2 = reg_5 + reg_2
+15 seti 1 0 2       # reg_2 = 1
+16 mulr 2 2 2       # reg_2 = reg_2 * reg_2     # HALT???
+
+SETUP
+17 addi 4 2 4       # reg_4 += 2                # reg_4 = 2
+18 mulr 4 4 4       # reg_4 = reg_4 * reg_4     # reg_4 = 4
+19 mulr 2 4 4       # reg_4 = reg_4 * reg_2     # reg_4 * reg_2 = 4 * 19 = 76
+20 muli 4 11 4      # reg_4 = reg_4 * 11        # reg_4 = 836
+21 addi 5 1 5       # reg_5 += 1                # reg_5 = 1
+22 mulr 5 2 5       # reg_5 = reg_5 * reg_2     # reg_5 = 22
+23 addi 5 17 5      # reg_5 += 17               # reg_5 = 39
+24 addr 4 5 4       # reg_4 += reg_5            # reg_4 + reg_5 = 836 + 39 = 875
+25 addr 2 0 2       # reg_2 += reg_0  (if reg_0 == 0, go to main; else go to PART 2)
+26 seti 0 9 2       # reg_2 = 0  (sets pointer to 0, which goes to 1)
+
+PART 2
+27 setr 2 3 5       # reg_5 = reg_2             # reg_5 = 27
+28 mulr 5 2 5       # reg_5 = reg_5 * reg_2     # 27 * 28 = 756
+29 addr 2 5 5       # reg_5 += reg_2            # 756 + 29 = 785
+30 mulr 2 5 5       # reg_5 = reg_2 * reg_5     # 785 * 30 = 23550
+31 muli 5 14 5      # reg_5 = reg_5 * 14        # 23550 * 14 = 329700
+32 mulr 5 2 5       # reg_5 = reg_5 * reg_2     # 329700 * 32 = 10550400
+33 addr 4 5 4       # reg_4 += reg_5            # 875 + 10550400 = 10551275
+34 seti 0 9 0       # reg_0 = 0
+35 seti 0 6 2       # reg_2 = 0  (GO TO)
+ '''
 
 def part_two(data: str):
-    ptr_register, instructions = parse_data(data)
-    comp = Computer(ptr_register, instructions, part_two=True)
-    comp.execute_instructions()
-    return comp.register_dict[0]
+    ''' https://nbviewer.org/github/mjpieters/adventofcode/blob/master/2018/D ay%2019.ipynb '''
+    def sum_factors(n: int) -> int:
+        return sum(
+            set(
+                itertools.chain.from_iterable(
+                    (i, n // i) for i in range(1, int(n**0.5) + 1) if not n % i
+                )
+            )
+        )
+
+    return sum_factors(10551275)
 
 def main():
     print(f"Part One (input):  {part_one(EXAMPLE)}")   
