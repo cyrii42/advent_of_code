@@ -1,61 +1,63 @@
-import functools
-import itertools
-import json
-import math
-import os
-from copy import deepcopy
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum
 from pathlib import Path
-from pprint import pprint
-from string import ascii_letters
-from typing import Callable, NamedTuple, Optional, Protocol
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_it
 from rich import print
+from typing import Callable, Any
 
-from advent_of_code.constants import DATA_DIR, TZ
+import advent_of_code as aoc
 
 CURRENT_FILE = Path(__file__)
-YEAR = CURRENT_FILE.parts[-2]
-DAY = CURRENT_FILE.stem.removeprefix('day')
+YEAR = int(CURRENT_FILE.parts[-2])
+DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
-EXAMPLE_FILE = DATA_DIR / str(YEAR) / str(DAY) / 'example.txt'
-INPUT_FILE = DATA_DIR / str(YEAR) / str(DAY) / 'input.txt' 
+TESTS_PART_ONE = [
+    ('12', 2),
+    ('14', 2),
+    ('1969', 654),
+    ('100756', 33583)
+]
 
-def calculate_fuel_required(mass: int) -> int:
-    return math.floor(mass / 3) - 2
+TESTS_PART_TWO = [
+    ('14', 2),
+    ('1969', 966),
+    ('100756', 50346)
+]
 
-def read_data(filename: Path) -> list[int]:
-    if not filename.exists():
-        return None
+INPUT = aoc.get_input(YEAR, DAY)
+
+def parse_data(data: str):
+    return [int(x) for x in data.splitlines()]
     
-    with open(filename, 'r') as f:
-        line_list = [line.strip('\n') for line in f.readlines()]
-        return [int(line) for line in line_list]
+def part_one(data: str):
+    mass_list = parse_data(data)
+    return sum(((mass // 3) - 2) for mass in mass_list)
+
+def calculate_fuel_part_two(mass: int) -> int:
+    total_fuel = 0
     
-def part_one(filename: Path):
-    data = read_data(filename)
-    return sum(calculate_fuel_required(x) for x in data)
+    while True:
+        fuel = ((mass // 3) - 2) 
+        if fuel < 0:
+            break
+        total_fuel += fuel
+        mass = fuel
 
-def part_two(filename: Path):
-    data = read_data(filename)
+    return total_fuel
 
+def part_two(data: str):
+    mass_list = parse_data(data)
+    return sum(calculate_fuel_part_two(mass) for mass in mass_list)
 
+def run_tests(tests: list[tuple[str, Any]], fn: Callable):
+    for i, example in enumerate(tests, start=1):
+        data, answer = example
+        test_answer = fn(data)
+        print(f"Test #{i}: {test_answer == answer}",
+              f"({test_answer})")
+    
 def main():
-    print(f"Part One (input):  {part_one(INPUT_FILE)}")
-    print()
-    print(f"Part Two (input):  {part_two(INPUT_FILE)}")
-
-    random_tests()
-
-
-def random_tests():
-    ...
-
-       
+    run_tests(TESTS_PART_ONE, part_one)
+    print(f"Part One (input):  {part_one(INPUT)}")
+    run_tests(TESTS_PART_TWO, part_two)
+    print(f"Part Two (input):  {part_two(INPUT)}")
+     
 if __name__ == '__main__':
     main()
