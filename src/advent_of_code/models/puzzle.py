@@ -16,11 +16,9 @@ from advent_of_code.html_parsing import (get_puzzle_title_and_descriptions_from_
                                          get_example_from_soup,
                                          get_answers_from_soup)
 
-
 from .puzzle_answer import PuzzleAnswer
 
-SQL_ENGINE = db.create_engine(SQLITE_URL)
-        
+SQL_ENGINE = db.create_engine(SQLITE_URL)        
 
 @dataclass
 class Puzzle:
