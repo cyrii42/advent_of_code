@@ -25,7 +25,7 @@ def write_code_template(year: int, day: int, overwrite: bool = False) -> None:
     file = solution_dir / f"day{day:02d}.py"
     print(file)
     if file.exists() and not overwrite:
-        print(f"File {file} already exists.")
+        logger.error(f"File {file} already exists.")
         return None
         
     with open(CODE_TEMPLATE, 'r') as f:
