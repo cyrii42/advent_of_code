@@ -1,5 +1,6 @@
 data/
 scripts/
+notebooks/
 **/*.html
 !tests/mock_html/*
 **/*.txt
