@@ -1,7 +1,14 @@
 from enum import Enum, IntEnum, StrEnum
-from typing import NamedTuple
+from typing import NamedTuple, Callable, Any
 from dataclasses import dataclass, field
 from collections import deque
+
+def run_tests(tests: list[tuple[str, Any]], fn: Callable):
+    for i, example in enumerate(tests, start=1):
+        data, answer = example
+        test_answer = fn(data)
+        print(f"Test #{i}: {test_answer == answer}",
+              f"({test_answer})")
 
 ### FOUR DIRECTIONS
 class Direction(IntEnum):
