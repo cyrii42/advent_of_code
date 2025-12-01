@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
 from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self
+from typing import Callable, Generator, NamedTuple, Optional, Self, Any
 
 import numpy as np
 import pandas as pd
