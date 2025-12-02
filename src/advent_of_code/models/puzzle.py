@@ -175,6 +175,27 @@ class Puzzle:
             self.refresh_data_from_server()
             return answer_obj
 
+    def write_to_db(self) -> None:
+        with SQL_ENGINE.connect() as conn:
+            stmt = (db.insert(puzzles_table)
+                      .values(
+                          year=self.year,
+                          day=self.day,
+                          title=self.title,
+                          part_1_description=self.part_1_description,
+                          part_1_solved=self.part_1_solved,
+                          part_1_answer=self.part_1_answer,
+                          part_2_description=self.part_2_description,
+                          part_2_solved=self.part_2_solved,
+                          part_2_answer=self.part_2_answer,
+                          example_text=self.example_text,
+                          input_text=self.input_text,
+                          raw_html=self.raw_html,
+                          url=self.url,
+                        ))
+            conn.execute(stmt)
+            conn.commit()
+
     @classmethod
     def from_database(cls, year: int, day: int) -> Self:
         validate_year_and_day(year, day)
