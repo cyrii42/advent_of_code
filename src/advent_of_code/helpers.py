@@ -26,6 +26,8 @@ def validate_year_and_day(year: int|str, day: int|str) -> None:
         raise ValueError(f"Invalid year: {year} (must be between 2015 and {LATEST_AOC_YEAR})")
     if day < 1 or day > 25: 
         raise ValueError(f"Invalid day: {day} (must be between 1 and 25)")
+    if year == dt.date.today().year and day > dt.date.today().day:
+        raise ValueError(f"Invalid day: {day} (must be between 1 and {dt.date.today().day})")
     return None
 
 def make_solution_dirs():
