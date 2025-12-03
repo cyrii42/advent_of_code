@@ -18,6 +18,7 @@ from typing import Callable, Generator, NamedTuple, Optional, Self, Any
 import numpy as np
 import pandas as pd
 import polars as pl
+import networkx as nx
 from alive_progress import alive_bar, alive_it
 from rich import print
 
