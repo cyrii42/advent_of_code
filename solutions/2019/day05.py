@@ -1,25 +1,6 @@
-import functools
-import hashlib
-import itertools
-import json
-import math
-import operator
-import os
-import sys
-import re
-from collections import defaultdict, deque
-from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
-from string import ascii_letters, ascii_lowercase, ascii_uppercase
-from typing import Callable, Generator, NamedTuple, Optional, Self, Any
-import inspect
-
-import numpy as np
-import pandas as pd
-import polars as pl
-from alive_progress import alive_bar, alive_it
+from typing import Callable
 from rich import print
 
 import advent_of_code as aoc
@@ -31,23 +12,6 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = '1002,4,3,4,33'
 INPUT = aoc.get_input(YEAR, DAY)
 
-class ParameterMode(Enum):
-    POSITION = 0
-    IMMEDIATE = 1
-
-class Parameter(NamedTuple):
-    value: int
-    mode: ParameterMode
-
-def get_num_parameters(fn: Callable) -> int:
-    return len([x for x in inspect.signature(fn).parameters if x != 'mode'])
-
-def get_ones_digit(num: int) -> int:
-    return (num // 10**0) % 10
-
-def get_digit_from_right(num: int, n: int) -> int:
-    return (num // 10**n) % 10
-
 @dataclass
 class Computer:
     program: list[int] = field(repr=False)
@@ -55,50 +19,122 @@ class Computer:
     output_list: list[int] = field(default_factory=list)
     ptr: int = 0
 
+    def __post_init__(self):
+        self.opcode_dict: dict[int, Callable] = {
+            1: self.add,
+            2: self.mul,
+            3: self.input,
+            4: self.output,
+            5: self.jump_if_true,
+            6: self.jump_if_false,
+            7: self.less_than,
+            8: self.equals,
+            99: self.end_program,
+        }
+
+    def parse_instruction(self, instruction: int) -> tuple[Callable, int, int, int]:
+        instruction_str = f"{instruction:05d}"
+        opcode = int(instruction_str[3:])
+        fn = self.opcode_dict[opcode]
+        mode_c, mode_b, mode_a = [int(x) for x in list(instruction_str[0:3])]
+        return (fn, mode_a, mode_b, mode_c)    
+
+    def get_value(self, num: int, mode: int) -> int:
+        return num if mode == 1 else self.program[num]   
+
     def execute_program(self):
         while True:
-            opcode = self.program[self.ptr]
-            if opcode == 99:
+            inst = self.program[self.ptr]
+            fn, mode_a, mode_b, _ = self.parse_instruction(inst)
+
+            if fn == self.end_program:
                 break
+            elif fn in [self.add, self.mul, self.less_than, self.equals]:
+                a, b, c = [self.program[self.ptr + x] for x in range(1, 4)]
+                val_a = self.get_value(a, mode_a)
+                val_b = self.get_value(b, mode_b)
+                val_c = c  # Write parameters will never be in immediate mode
+                fn(val_a, val_b, val_c)
+                self.ptr += 4
+            elif fn in [self.jump_if_true, self.jump_if_false]:
+                a, b = [self.program[self.ptr + x] for x in range(1, 3)]
+                val_a = self.get_value(a, mode_a)
+                val_b = self.get_value(b, mode_b)
+                fn(val_a, val_b)
+            elif fn == self.input:
+                a = self.program[self.ptr + 1]
+                val_a = a
+                fn(val_a)
+                self.ptr += 2 
+            elif fn == self.output:
+                a = self.program[self.ptr + 1]
+                val_a = self.get_value(a, mode_a)
+                fn(val_a)
+                self.ptr += 2    
 
-            match get_ones_digit(opcode):
-                case 1 | 2:
-                    fn = self.add if opcode == 1 else self.mul
-                    parameter_list = []
-                    for x in range(2, 5):
-                        self.ptr += 1
-                        mode_num = get_digit_from_right(opcode, x)
-                        mode = ParameterMode(mode_num)
-                        parameter = Parameter(value=self.program[self.ptr], mode=mode)
-                        # print(fn, parameter)
-                        parameter_list.append(parameter)
-                    a, b, c = parameter_list
-                    fn(a, b, c)
-                case 3:
-                    self.ptr += 1
-                    a = self.program[self.ptr]
-                    self.program[a] = self.input_num
-                case 4:
-                    self.ptr += 1
-                    output_num = self.program[self.ptr]
+    def add(self, a: int, b: int, c: int) -> None:
+        ''' Adds together numbers read from two positions and stores
+        the result in a third position'''
+        
+        self.program[c] = a + b
 
-                    if output_num != 0:
-                        print(f"Non-zero output at line {self.ptr}")
-                    self.output_list.append(output_num)
-                case _:
-                    print('asodfiasdoifhasdofhsadofih')
+    def mul(self, a: int, b: int, c: int) -> None:
+        ''' Multiplies numbers read from two positions and stores
+        the result in a third position'''
+        
+        self.program[c] = a * b
 
-            self.ptr += 1
-       
-    def add(self, a: Parameter, b: Parameter, c: Parameter) -> None:
-        val_a = self.program[a.value] if a.mode == ParameterMode.POSITION else a.value
-        val_b = self.program[b.value] if b.mode == ParameterMode.POSITION else b.value
-        self.program[c.value] = val_a + val_b
+    def input(self, a: int) -> None:
+        ''' Takes a single integer as input and saves it to the position 
+        given by its only parameter. For example, the instruction 3,50 would 
+        take an input value and store it at address 50.'''
+        
+        self.program[a] = self.input_num
 
-    def mul(self, a: Parameter, b: Parameter, c: Parameter) -> None:
-        val_a = self.program[a.value] if a.mode == ParameterMode.POSITION else a.value
-        val_b = self.program[b.value] if b.mode == ParameterMode.POSITION else b.value
-        self.program[c.value] = val_a * val_b
+    def output(self, a: int) -> None:
+        ''' Outputs the value of its only parameter. For example, the 
+        instruction 4,50 would output the value at address 50. '''
+        
+        self.output_list.append(a)
+
+    def jump_if_true(self, a: int, b: int) -> None:
+        ''' If the first parameter is non-zero, sets the instruction pointer 
+        to the value from the second parameter. Otherwise, does nothing. '''
+        
+        if a != 0:
+            self.ptr = b
+        else:
+            self.ptr += 3
+
+    def jump_if_false(self, a: int, b: int) -> None:
+        ''' If the first parameter is zero, sets the instruction pointer 
+        to the value from the second parameter. Otherwise, does nothing. '''
+        
+        if a == 0:
+            self.ptr = b
+        else:
+            self.ptr += 3
+
+    def less_than(self, a: int, b: int, c: int) -> None:
+        ''' if the first parameter is less than the second parameter, stores 1 
+        in the position given by the third parameter. Otherwise, stores 0. '''
+        
+        if a < b:
+            self.program[c] = 1
+        else:
+            self.program[c] = 0
+
+    def equals(self, a: int, b: int, c: int) -> None:
+        ''' if the first parameter is equal to the second parameter, stores 1 
+        in the position given by the third parameter. Otherwise, stores 0. '''
+        
+        if a == b:
+            self.program[c] = 1
+        else:
+            self.program[c] = 0
+
+    def end_program(self) -> None:
+        pass
 
 def parse_data(data: str) -> list[int]:
     output_list = []
@@ -109,28 +145,21 @@ def parse_data(data: str) -> list[int]:
             output_list.append(int(num_str))
     return output_list
     
-    
 def part_one(data: str):
     program = parse_data(data)
-    comp = Computer(program, input_num=1)
+    comp = Computer(program, 1)
     comp.execute_program()
-    print(comp)
+    return comp.output_list[-1]
 
 def part_two(data: str):
-    __ = parse_data(data)
-
-
+    program = parse_data(data)
+    comp = Computer(program, 5)
+    comp.execute_program()
+    return comp.output_list[-1]
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
     print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    # print(f"Part Two (input):  {part_two(INPUT)}")
-
-    random_tests()
-
-def random_tests():
-    ...
+    print(f"Part Two (input):  {part_two(INPUT)}")
        
 if __name__ == '__main__':
     main()
