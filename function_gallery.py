@@ -106,6 +106,24 @@ def get_point_neighbors(point: Point) -> list[Point]:
         output_list.append((row + delta_row, col + delta_col))
     return output_list
 
+def get_node_neighbor_coordinates_row_col(node: Node) -> list[tuple[int, int]]:
+    x, y = (node.x, node.y)
+
+    output_list = []
+    for dir in Direction:
+        delta_x, delta_y = DIRECTION_DELTAS[dir]
+        output_list.append((x + delta_x, y + delta_y))
+    return output_list
+
+def get_node_neighbor_coordinates_x_y(node: Node) -> list[tuple[int, int]]:
+    row, col = (node.row, node.col)
+
+    output_list = []
+    for dir in Direction:
+        delta_row, delta_col = DIRECTION_DELTAS[dir]
+        output_list.append((row + delta_row, col + delta_col))
+    return output_list
+
 def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
     output_dict: dict[Node, list[Node]] = {}
     
