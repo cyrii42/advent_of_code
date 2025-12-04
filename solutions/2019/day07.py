@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, Any
 from rich import print
 
-from intcode import IntCode, Halt, Output
+from intcode import IntCode, IntCodeReturnType, AwaitingInput
 import advent_of_code as aoc
 
 CURRENT_FILE = Path(__file__)
@@ -39,41 +39,32 @@ def part_one(data: str):
         for i in range(5):
             input_signal = output_signal
             phase_setting = seq[i]
-            amp = IntCode(program, deque([phase_setting, input_signal]))
-            output_signal = amp.execute_program().value
+            amp = IntCode(program=program, input=phase_setting)
+            amp.add_input(input_signal)
+            result = amp.execute_program()
+            output_signal = result.value
         max_signal = max(output_signal, max_signal)
     return max_signal
-
-def create_amplifiers(program: list[int], 
-                      seq: tuple[int, ...]
-                      ) -> list[IntCode]:
-    id_list = ['A', 'B', 'C', 'D', 'E']
-    amps = [IntCode(program=program.copy(), 
-                    id=char, 
-                    input_queue=deque([n])) 
-            for char, n
-            in zip(id_list, seq)]
-    return amps
 
 def part_two(data: str):
     program = parse_data(data)
     max_signal = 0
     for seq in itertools.permutations([5, 6, 7, 8, 9]):
-        amp_list = create_amplifiers(program, seq)
+        amp_list = [IntCode(program=program.copy(), input=n) for n in seq]
         output_signal = 0
         i = 0
         while True:
             amp = amp_list[i]
-            amp.input_queue.append(output_signal)
+            amp.add_input(output_signal)
             result = amp.execute_program()
-            if isinstance(result, Halt):
+            if result.type == IntCodeReturnType.HALT:
                 amp_e = amp_list[-1]
                 max_signal = max(amp_e.output, max_signal)
                 break
-            elif isinstance(result, Output):
+            if result.type == IntCodeReturnType.OUTPUT:
                 output_signal = result.value
             else:
-                raise ValueError
+                raise AwaitingInput
             i = (i + 1) % len(amp_list)
     return max_signal
     

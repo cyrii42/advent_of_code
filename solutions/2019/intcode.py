@@ -1,37 +1,30 @@
 from dataclasses import dataclass, field
 from collections import deque
+from enum import Enum
 from typing import Callable, NamedTuple
 
 class AwaitingInput(Exception):
     pass
 
-class NewOutput(Exception):
-    pass
+class IntCodeReturnType(Enum):
+    HALT = 0
+    OUTPUT = 1
+    AWAITING_INPUT = 2
 
-class EndProgram(Exception):
-    pass
-
-class IntCodeReturnType(NamedTuple):
+class IntCodeReturn(NamedTuple):
+    type: IntCodeReturnType
     value: int
-
-class Halt(IntCodeReturnType):
-    pass
-
-class Output(IntCodeReturnType):
-    pass
-
-class NeedInput(IntCodeReturnType):
-    pass
 
 @dataclass
 class IntCode:
     program: list[int] = field(repr=False)
-    input_queue: deque[int] = field(default_factory=deque)
+    input: int
+    input_queue: deque[int] = field(init=False)
     output_queue: deque[int] = field(default_factory=deque)
-    id: str = ''
     ptr: int = 0
 
     def __post_init__(self):
+        self.input_queue = deque([self.input])
         self.opcode_dict: dict[int, Callable] = {
             1: self.add,
             2: self.mul,
@@ -43,6 +36,9 @@ class IntCode:
             8: self.equals,
             99: self.end_program,
         }
+
+    def add_input(self, new_input: int) -> None:
+        self.input_queue.append(new_input)
 
     @property
     def output(self) -> int:
@@ -58,19 +54,18 @@ class IntCode:
     def get_value(self, num: int, mode: int) -> int:
         return num if mode == 1 else self.program[num]   
 
-    def execute_program(self) -> IntCodeReturnType:
+    def execute_program(self) -> IntCodeReturn:
         while True:
             inst = self.program[self.ptr]
             fn, mode_a, mode_b, _ = self.parse_instruction(inst)
 
             if fn == self.end_program:
-                return Halt(self.output_queue[-1])
+                return IntCodeReturn(IntCodeReturnType.HALT, self.output)
             elif fn in [self.add, self.mul, self.less_than, self.equals]:
                 a, b, c = [self.program[self.ptr + x] for x in range(1, 4)]
                 val_a = self.get_value(a, mode_a)
                 val_b = self.get_value(b, mode_b)
-                val_c = c  # Write parameters will never be in immediate mode
-                fn(val_a, val_b, val_c)
+                fn(val_a, val_b, c)  # Write parameters will never be in immediate mode
                 self.ptr += 4
             elif fn in [self.jump_if_true, self.jump_if_false]:
                 a, b = [self.program[self.ptr + x] for x in range(1, 3)]
@@ -85,13 +80,13 @@ class IntCode:
                     self.ptr += 2
                 except AwaitingInput:
                     self.ptr += 2
-                    return NeedInput(0)
+                    return IntCodeReturn(IntCodeReturnType.AWAITING_INPUT, 0)
             elif fn == self.output_fn:
                 a = self.program[self.ptr + 1]
                 val_a = self.get_value(a, mode_a)
                 fn(val_a)
                 self.ptr += 2
-                return Output(self.output_queue[-1]) 
+                return IntCodeReturn(IntCodeReturnType.OUTPUT, self.output)
 
     def add(self, a: int, b: int, c: int) -> None:
         ''' Adds together numbers read from two positions and stores

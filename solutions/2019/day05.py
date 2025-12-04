@@ -1,11 +1,8 @@
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
-from collections import deque
 from rich import print
 
 import advent_of_code as aoc
-from intcode import IntCode, Output, Halt
+from intcode import IntCode, IntCodeReturnType
 
 CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
@@ -25,19 +22,19 @@ def parse_data(data: str) -> list[int]:
     
 def part_one(data: str):
     program = parse_data(data)
-    comp = IntCode(program, input_queue=deque([1]))
+    comp = IntCode(program, input=1)
     while True:
         result = comp.execute_program()
-        if isinstance(result, Halt):
+        if result.type == IntCodeReturnType.HALT:
             return result.value
     
 
 def part_two(data: str):
     program = parse_data(data)
-    comp = IntCode(program, input_queue=deque([5]))
+    comp = IntCode(program, input=5)
     while True:
         result = comp.execute_program()
-        if isinstance(result, Halt):
+        if result.type == IntCodeReturnType.HALT:
             return result.value
 
 def main():
