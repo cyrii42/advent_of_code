@@ -22,12 +22,24 @@ TESTS_PART_TWO = [
 ]
 INPUT = aoc.get_input(YEAR, DAY)
 
+class AwaitingInput(Exception):
+    pass
+
+class NewOutput(Exception):
+    pass
+
+class EndProgram(Exception):
+    pass
+
 @dataclass
-class Computer:
+class Amplifier:
     program: list[int] = field(repr=False)
-    inputs: list[int]
-    output_list: list[int] = field(default_factory=list)
+    input_queue: deque[int] = field(default_factory=deque)
+    output_queue: deque[int] = field(default_factory=deque)
+    id: str = ''
     ptr: int = 0
+    part_two: bool = False
+    awaiting_input: bool = False
 
     def __post_init__(self):
         self.opcode_dict: dict[int, Callable] = {
@@ -52,35 +64,51 @@ class Computer:
     def get_value(self, num: int, mode: int) -> int:
         return num if mode == 1 else self.program[num]   
 
-    def execute_program(self):
-        while True:
-            inst = self.program[self.ptr]
-            fn, mode_a, mode_b, _ = self.parse_instruction(inst)
-
-            if fn == self.end_program:
-                break
-            elif fn in [self.add, self.mul, self.less_than, self.equals]:
-                a, b, c = [self.program[self.ptr + x] for x in range(1, 4)]
-                val_a = self.get_value(a, mode_a)
-                val_b = self.get_value(b, mode_b)
-                val_c = c  # Write parameters will never be in immediate mode
-                fn(val_a, val_b, val_c)
-                self.ptr += 4
-            elif fn in [self.jump_if_true, self.jump_if_false]:
-                a, b = [self.program[self.ptr + x] for x in range(1, 3)]
-                val_a = self.get_value(a, mode_a)
-                val_b = self.get_value(b, mode_b)
-                fn(val_a, val_b)
-            elif fn == self.input:
+    def execute_next_instruction(self) -> None:
+        if self.awaiting_input and not self.input_queue:
+            raise AwaitingInput
+        
+        inst = self.program[self.ptr]
+        fn, mode_a, mode_b, _ = self.parse_instruction(inst)
+    
+        if fn == self.end_program:
+            raise EndProgram
+        elif fn in [self.add, self.mul, self.less_than, self.equals]:
+            a, b, c = [self.program[self.ptr + x] for x in range(1, 4)]
+            val_a = self.get_value(a, mode_a)
+            val_b = self.get_value(b, mode_b)
+            val_c = c  # Write parameters will never be in immediate mode
+            fn(val_a, val_b, val_c)
+            self.ptr += 4
+        elif fn in [self.jump_if_true, self.jump_if_false]:
+            a, b = [self.program[self.ptr + x] for x in range(1, 3)]
+            val_a = self.get_value(a, mode_a)
+            val_b = self.get_value(b, mode_b)
+            fn(val_a, val_b)
+        elif fn == self.input:
+            try:
                 a = self.program[self.ptr + 1]
                 val_a = a
                 fn(val_a)
-                self.ptr += 2 
-            elif fn == self.output:
+                self.ptr += 2
+            except AwaitingInput:
+                raise
+        elif fn == self.output:
+            try:
                 a = self.program[self.ptr + 1]
                 val_a = self.get_value(a, mode_a)
                 fn(val_a)
-                self.ptr += 2    
+            except NewOutput:
+                raise
+            finally:
+                self.ptr += 2
+
+    def execute_program(self):
+        while True:
+            try:
+                self.execute_next_instruction()
+            except EndProgram:
+                break
 
     def add(self, a: int, b: int, c: int) -> None:
         ''' Adds together numbers read from two positions and stores
@@ -98,14 +126,22 @@ class Computer:
         ''' Takes a single integer as input and saves it to the position 
         given by its only parameter. For example, the instruction 3,50 would 
         take an input value and store it at address 50.'''
-        
-        self.program[a] = self.inputs.pop(0)
+
+        if not self.part_two:
+            self.program[a] = self.input_queue.popleft()
+        else:
+            try:
+                self.program[a] = self.input_queue.popleft()
+            except IndexError:
+                raise AwaitingInput
 
     def output(self, a: int) -> None:
         ''' Outputs the value of its only parameter. For example, the 
         instruction 4,50 would output the value at address 50. '''
         
-        self.output_list.append(a)
+        self.output_queue.append(a)
+        if self.part_two:
+            raise NewOutput
 
     def jump_if_true(self, a: int, b: int) -> None:
         ''' If the first parameter is non-zero, sets the instruction pointer 
@@ -162,9 +198,9 @@ def try_phase_sequence(program: list[int], seq: tuple[int, ...]) -> int:
     for i in range(5):
         input_signal = output_signal
         phase_setting = seq[i]
-        comp = Computer(program, [phase_setting, input_signal])
+        comp = Amplifier(program, deque([phase_setting, input_signal]))
         comp.execute_program()
-        output_signal = comp.output_list[-1]
+        output_signal = comp.output_queue.pop()
     return output_signal
         
 def part_one(data: str):
@@ -175,20 +211,86 @@ def part_one(data: str):
         max_signal = max(signal, max_signal)
     return max_signal
 
-def try_phase_sequence_part_two(program: list[int], seq: tuple[int, ...]) -> int:
-    if len(seq) != 5:
-        raise ValueError("Sequence must contain exactly 5 numbers")
-    output_signal = 0
-    for i in range(5):
-        input_signal = output_signal
-        phase_setting = seq[i]
-        comp = Computer(program, [phase_setting, input_signal])
-        comp.execute_program()
-        output_signal = comp.output_list[-1]
-    return output_signal
+def create_amplifiers(program: list[int]) -> list[Amplifier]:
+    return [Amplifier(program, id=char, part_two=True) 
+            for char in ['A', 'B', 'C', 'D', 'E']]
+
+@dataclass
+class AmplifierSeries:
+    program: list[int]
+    amplifiers: list[Amplifier]
+
+    def get_highest_thruster_signal(self) -> int:
+        max_signal = 0
+        for seq in itertools.permutations([5, 6, 7, 8, 9]):
+            signal = self.try_phase_sequence(seq)
+            max_signal = max(signal, max_signal)
+        return max_signal
+
+    def try_phase_sequence(self, seq: tuple[int, ...]) -> int:
+        phase_sequence = deque(seq)
+
+        self.amplifiers[0].input_queue.append(0)
+       
+        while True:
+            next_input = deque(seq)
+            for amp in self.amplifiers:
+                print(amp)
+                try:
+                    amp.execute_program()
+                except NewOutput:
+                    next_input.append(amp.output_queue.pop())
+                    amp.ptr += 2
+                except AwaitingInput:
+                    if next_input:
+                        amp.input(next_input.popleft())
+                        amp.ptr += 2
+                    else:
+                        continue
+                except EndProgram:
+                    return self.amplifiers[-1].output_queue.pop()
+        
 
 def part_two(data: str):
     ...
+    ### I feel like there's been another problem that involved
+    ### passing data among objects... try looking at:
+    #   - 2016 day 10
+    #   - 2017 day 18
+    program = parse_data(data)
+    amp_list = [Amplifier(program.copy(), id=char, part_two=True) 
+                for char in ['A', 'B', 'C', 'D', 'E']]
+    amp_series = AmplifierSeries(program, amp_list)
+
+    return amp_series.get_highest_thruster_signal()
+
+    # phase_sequence = (x for x in )
+
+    # while True:
+    #     for amp in amps:
+    #         try:
+    #             amp.execute_program()
+    #         except 
+
+    # while True:
+    #     try:
+    #         comp0.execute_next_instruction()
+    #     except AwaitingInput:
+    #         pass
+    #     except NewOutput:
+    #         value = comp0.output_queue.pop()
+    #         comp1.input_queue.append(value)
+            
+    #     try:
+    #         comp1.execute_next_instruction()
+    #     except AwaitingInput:
+    #         pass
+    #     except NewOutput:
+    #         value = comp1.output_queue.pop()
+    #         comp0.input_queue.append(value)
+
+    #     if comp0.awaiting_input and comp1.awaiting_input:
+    #         return comp1.values_sent
     
 def run_tests(tests: list[tuple[str, Any]], fn: Callable):
     for i, example in enumerate(tests, start=1):
@@ -198,15 +300,19 @@ def run_tests(tests: list[tuple[str, Any]], fn: Callable):
               f"({test_answer})")
 
 def main():
-    run_tests(TESTS_PART_ONE, part_one)
-    print(f"Part One (input):  {part_one(INPUT)}")
+    # run_tests(TESTS_PART_ONE, part_one)
+    # print(f"Part One (input):  {part_one(INPUT)}")
     run_tests(TESTS_PART_TWO, part_two)
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
 def random_tests():
-    ...
+    asdf = itertools.permutations([0, 1, 2, 3, 4])
+    x = deque(next(asdf))
+    print(x)
+    print(x.popleft())
+    print(x)
        
 if __name__ == '__main__':
     main()
