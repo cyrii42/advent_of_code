@@ -2,7 +2,7 @@ from pathlib import Path
 from rich import print
 
 import advent_of_code as aoc
-from intcode import IntCode, IntCodeReturnType
+from intcode import IntCode, IntCodeReturnType, parse_intcode_program
 
 CURRENT_FILE = Path(__file__)
 YEAR = int(CURRENT_FILE.parts[-2])
@@ -10,18 +10,9 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 
 EXAMPLE = '1002,4,3,4,33'
 INPUT = aoc.get_input(YEAR, DAY)
-
-def parse_data(data: str) -> list[int]:
-    output_list = []
-    for num_str in data.split(','):
-        if num_str[0] == '-':
-            output_list.append(0 - int(num_str[1:]))
-        else:
-            output_list.append(int(num_str))
-    return output_list
-    
+   
 def part_one(data: str):
-    program = parse_data(data)
+    program = parse_intcode_program(data)
     comp = IntCode(program, input=1)
     while True:
         result = comp.execute_program()
@@ -29,7 +20,7 @@ def part_one(data: str):
             return result.value
     
 def part_two(data: str):
-    program = parse_data(data)
+    program = parse_intcode_program(data)
     comp = IntCode(program, input=5)
     while True:
         result = comp.execute_program()

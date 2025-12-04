@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, Any
 from rich import print
 
-from intcode import IntCode, IntCodeReturnType, AwaitingInput
+from intcode import IntCode, IntCodeReturnType, AwaitingInput, parse_intcode_program
 import advent_of_code as aoc
 
 CURRENT_FILE = Path(__file__)
@@ -21,18 +21,9 @@ TESTS_PART_TWO = [
     ('3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10', 18216) # 9,7,8,5,6
 ]
 INPUT = aoc.get_input(YEAR, DAY)
-
-def parse_data(data: str) -> list[int]:
-    output_list = []
-    for num_str in data.split(','):
-        if num_str[0] == '-':
-            output_list.append(0 - int(num_str[1:]))
-        else:
-            output_list.append(int(num_str))
-    return output_list
-        
+       
 def part_one(data: str):
-    program = parse_data(data)
+    program = parse_intcode_program(data)
     max_signal = 0
     for seq in itertools.permutations([0, 1, 2, 3, 4]):
         output_signal = 0
@@ -47,7 +38,7 @@ def part_one(data: str):
     return max_signal
 
 def part_two(data: str):
-    program = parse_data(data)
+    program = parse_intcode_program(data)
     max_signal = 0
     for seq in itertools.permutations([5, 6, 7, 8, 9]):
         amp_list = [IntCode(program=program.copy(), input=n) for n in seq]
