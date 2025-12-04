@@ -28,7 +28,6 @@ def part_one(data: str):
         if result.type == IntCodeReturnType.HALT:
             return result.value
     
-
 def part_two(data: str):
     program = parse_data(data)
     comp = IntCode(program, input=5)
