@@ -22,6 +22,6 @@ def setup_logging():
         retention="30 days",
         serialize=False,
         diagnose=True,
-        level='INFO'
+        level='DEBUG'
     )
 
