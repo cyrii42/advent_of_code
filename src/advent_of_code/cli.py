@@ -20,7 +20,6 @@ def get_puzzle(year: int, day: int) -> Puzzle:
         return Puzzle.from_database(year, day)
     except PuzzleNotFound:
         puzzle = Puzzle.from_server(year, day)
-        puzzle.write_to_db()
         return puzzle
 
 @app.command(help='Make \"solutions\" subdirectories for 2015 through the latest AOC year (if not already created)')
