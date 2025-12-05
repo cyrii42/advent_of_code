@@ -29,7 +29,22 @@ class Direction(IntEnum):
     def opposite(self) -> "Direction":
         num_dirs = len(Direction)
         return Direction((self.value + num_dirs // 2) % num_dirs)
+    
+# ROW, COL
+DIRECTION_DELTAS = {
+    Direction.UP: (-1, 0),
+    Direction.RIGHT: (0, 1),
+    Direction.DOWN: (1, 0),
+    Direction.LEFT: (0, -1),
+}
 
+# X, Y
+DIRECTION_DELTAS = {      
+    Direction.UP: (0, -1),
+    Direction.RIGHT: (1, 0),
+    Direction.DOWN: (0, 1),
+    Direction.LEFT: (-1, 0),
+}
 
 ### EIGHT DIRECTIONS
 class Direction(IntEnum):
@@ -55,22 +70,8 @@ class Direction(IntEnum):
         num_dirs = len(Direction)
         return Direction((self.value + num_dirs // 2) % num_dirs)
 
-
-## for infinite positive grid beginning at upper left
-DIRECTION_DELTAS = {      # ROW, COL
-    Direction.UP: (-1, 0),
-    Direction.RIGHT: (0, 1),
-    Direction.DOWN: (1, 0),
-    Direction.LEFT: (0, -1),
-}
-DIRECTION_DELTAS = {      # X, Y
-    Direction.UP: (0, -1),
-    Direction.RIGHT: (1, 0),
-    Direction.DOWN: (0, 1),
-    Direction.LEFT: (-1, 0),
-}
-
-DIRECTION_DELTAS = {      # ROW, COL
+# ROW, COL
+DIRECTION_DELTAS = {
     Direction.NORTH: (-1, 0),
     Direction.NORTHEAST: (-1, 1),
     Direction.EAST: (0, 1),
@@ -81,7 +82,8 @@ DIRECTION_DELTAS = {      # ROW, COL
     Direction.NORTHWEST: (-1, -1)
 }
 
-DIRECTION_DELTAS = {      # X, Y
+# X, Y
+DIRECTION_DELTAS = {
     Direction.NORTH: (0, -1),
     Direction.NORTHEAST: (1, -1),
     Direction.EAST: (1, 0),
@@ -92,13 +94,32 @@ DIRECTION_DELTAS = {      # X, Y
     Direction.NORTHWEST: (-1, 1)
 }
 
-
 class Point(NamedTuple):
     row: int
     col: int
 
+class NodeType(Enum):
+    EMPTY = 0
+    FILLED = 1
+
+class Node(NamedTuple):
+    x: int
+    y: int
+    node_type: NodeType
+
+type NodeDict = dict[tuple[int, int], Node]
+def create_node_dict(data: str) -> NodeDict:
+    line_list = data.splitlines()
+    node_list: list[Node] = []
+    for y, line in enumerate(line_list):
+        for x, char in enumerate(line):
+            node_type = NodeType.FILLED if char == '#' else NodeType.EMPTY
+            node_list.append(Node(x, y, node_type))
+    node_dict = {(node.x, node.y): node for node in node_list}
+    return node_dict
+
 def get_point_neighbors(point: Point) -> list[Point]:
-    row, col = point.row, point.col
+    row, col = point
 
     output_list = []
     for dir in Direction:
@@ -106,35 +127,19 @@ def get_point_neighbors(point: Point) -> list[Point]:
         output_list.append((row + delta_row, col + delta_col))
     return output_list
 
-def get_node_neighbor_coordinates_row_col(node: Node) -> list[tuple[int, int]]:
-    x, y = (node.x, node.y)
 
-    output_list = []
-    for dir in Direction:
-        delta_x, delta_y = DIRECTION_DELTAS[dir]
-        output_list.append((x + delta_x, y + delta_y))
-    return output_list
-
-def get_node_neighbor_coordinates_x_y(node: Node) -> list[tuple[int, int]]:
-    row, col = (node.row, node.col)
-
-    output_list = []
-    for dir in Direction:
-        delta_row, delta_col = DIRECTION_DELTAS[dir]
-        output_list.append((row + delta_row, col + delta_col))
-    return output_list
-
-def create_graph(node_list: list[Node]) -> dict[Node, list[Node]]:
-    output_dict: dict[Node, list[Node]] = {}
+type NodeGraph = dict[Node, list[Node]]
+def create_graph(node_dict: dict[tuple[int, int], Node]) -> NodeGraph:
+    output_dict = {}
     
-    for node in node_list:
+    for node in node_dict.values():
         neighbor_list = []
-        for row, col in get_node_neighbor_coordinates(node):
+        for direction in Direction:
+            dx, dy = DIRECTION_DELTAS[direction]
             try:
-                neighbor_list.append(
-                    next(node for node in node_list 
-                        if node.row == row and node.col == col))
-            except StopIteration:
+                neighbor = node_dict[(node.x + dx, node.y + dy)]
+                neighbor_list.append(neighbor)
+            except KeyError:
                 continue
         output_dict[node] = neighbor_list
         
