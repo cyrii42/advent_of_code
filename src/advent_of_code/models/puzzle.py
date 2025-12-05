@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Literal, Self
 
 import sqlalchemy as db
+from sqlalchemy.exc import IntegrityError
 from bs4 import BeautifulSoup
 from loguru import logger
 
@@ -39,17 +40,16 @@ class Puzzle:
     answers: list[PuzzleAnswer] = field(default_factory=list)
 
     def __post_init__(self):
-        if not self.id:
-            self.id = self.get_sql_id()
         if not self.url:
             self.url = f"https://adventofcode.com/{self.year}/day/{self.day}"
-            
+        if not self.id:
+            self.id = self.get_sql_id()
         self.answers = self.pull_all_answers_from_db()
         self.check_answers_in_list()
 
     def update_answers_in_db_answer_table(self) -> None:
         if not self.part_1_answer and not self.part_2_answer:
-            logger.debug(f"{self.year} DAY {self.day:02d} | No correct answers found.")
+            logger.debug(f"{self.year} DAY {self.day:02d} (ID: {self.id}) | No correct answers found.")
             return None
 
         for level in [1, 2]:
@@ -67,7 +67,7 @@ class Puzzle:
                                           raw_response=raw_response)
                 answer_obj.write_to_sql()
             else:
-                logger.debug(f"{self.year} DAY {self.day:02d} | All correct answers already found in database.")
+                logger.debug(f"{self.year} DAY {self.day:02d} (ID: {self.id}) | All correct answers already found in database.")
 
     def find_answers_in_raw_html(self) -> None:
         if not self.raw_html:
@@ -82,12 +82,12 @@ class Puzzle:
             answer_text = tag.find('code').get_text() # type: ignore
 
             if i == 1 and (answer_text != self.part_1_answer):
-                logger.info(f"{self.year} DAY {self.day:02d} | Adding new Part One answer: {answer_text}")
+                logger.info(f"{self.year} DAY {self.day:02d} (ID: {self.id}) | Adding new Part One answer: {answer_text}")
                 self.part_1_answer = answer_text
                 self.part_1_solved = True
                 update_db = True
             if i == 2 and (answer_text != self.part_2_answer):
-                logger.info(f"{self.year} DAY {self.day:02d} | Adding new Part Two answer: {answer_text}")
+                logger.info(f"{self.year} DAY {self.day:02d} (ID: {self.id}) | Adding new Part Two answer: {answer_text}")
                 self.part_2_answer = answer_text
                 self.part_2_solved = True
                 update_db = True
@@ -101,6 +101,7 @@ class Puzzle:
             self.id = self.get_sql_id()
 
         values_dict = {key: value for key, value in self.__dict__.items() if key != 'answers'}
+        logger.debug(f"{self.year} DAY {self.day:02d} (ID: {self.id}) | Updating info on DB: {values_dict}")
         
         with SQL_ENGINE.connect() as conn:
             stmt = (
@@ -120,8 +121,10 @@ class Puzzle:
             if not result:
                 return list()
             else:
-                return sorted([PuzzleAnswer(**row._asdict()) for row in result],
+                answers = sorted([PuzzleAnswer(**row._asdict()) for row in result],
                               key=lambda a: a.timestamp_dt)
+                logger.debug(f"{self.year} DAY {self.day:02d} (ID: {self.id}) | Pulled answers from DB: {answers}")
+                return answers
 
     def check_answers_in_list(self) -> None:
         if not self.answers:
@@ -136,18 +139,6 @@ class Puzzle:
         if correct_answers_part_2:
             self.part_2_solved = True
             self.part_2_answer = correct_answers_part_2[0].answer
-
-    def get_sql_id(self) -> int:
-        with SQL_ENGINE.connect() as conn:
-            stmt = (db
-                    .select(puzzles_table)
-                    .where(puzzles_table.c.year == self.year)
-                    .where(puzzles_table.c.day == self.day))
-            result = conn.execute(stmt).fetchone()
-            if result:
-                return result.id 
-            else:
-                return 0
 
     def submit_answer(self, 
                       answer: str|int, 
@@ -175,26 +166,46 @@ class Puzzle:
             self.refresh_data_from_server()
             return answer_obj
 
-    def write_to_db(self) -> None:
+    def get_sql_id(self) -> int:
         with SQL_ENGINE.connect() as conn:
-            stmt = (db.insert(puzzles_table)
-                      .values(
-                          year=self.year,
-                          day=self.day,
-                          title=self.title,
-                          part_1_description=self.part_1_description,
-                          part_1_solved=self.part_1_solved,
-                          part_1_answer=self.part_1_answer,
-                          part_2_description=self.part_2_description,
-                          part_2_solved=self.part_2_solved,
-                          part_2_answer=self.part_2_answer,
-                          example_text=self.example_text,
-                          input_text=self.input_text,
-                          raw_html=self.raw_html,
-                          url=self.url,
-                        ))
-            conn.execute(stmt)
-            conn.commit()
+            stmt = (db
+                    .select(puzzles_table)
+                    .where(puzzles_table.c.year == self.year)
+                    .where(puzzles_table.c.day == self.day))
+            result = conn.execute(stmt).fetchone()
+            if result:
+                return result.id 
+            else:
+                return self.write_to_db()  # returns the new primary key
+
+    def write_to_db(self) -> int:
+        try:
+            with SQL_ENGINE.connect() as conn:
+                stmt = (db.insert(puzzles_table)
+                          .values(
+                              year=self.year,
+                              day=self.day,
+                              title=self.title,
+                              part_1_description=self.part_1_description,
+                              part_1_solved=self.part_1_solved,
+                              part_1_answer=self.part_1_answer,
+                              part_2_description=self.part_2_description,
+                              part_2_solved=self.part_2_solved,
+                              part_2_answer=self.part_2_answer,
+                              example_text=self.example_text,
+                              input_text=self.input_text,
+                              raw_html=self.raw_html,
+                              url=self.url))
+                result = conn.execute(stmt)
+                logger.debug(f"{self.year} DAY {self.day:02d}) | New SQL Result: {result}")
+                assert result.inserted_primary_key
+                primary_key = result.inserted_primary_key.tuple()[0]
+                conn.commit()
+                logger.debug(f"{self.year} DAY {self.day:02d}) | Wrote puzzle to DB (new puzzle ID: {primary_key})")
+                return primary_key
+        except IntegrityError as e:
+            logger.error(f"{self.year} DAY {self.day:02d}) | SQLAlchemy Integrity Error: {e}")
+            return -1
 
     @classmethod
     def from_database(cls, year: int, day: int) -> Self:
