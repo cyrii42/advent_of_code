@@ -107,6 +107,9 @@ class Node(NamedTuple):
     y: int
     node_type: NodeType
 
+def manhattan_distance(n1: Node, n2: Node) -> int:
+    return abs(n1.x - n2.x) + abs(n1.y - n2.y)
+
 type NodeDict = dict[tuple[int, int], Node]
 def create_node_dict(data: str) -> NodeDict:
     line_list = data.splitlines()
