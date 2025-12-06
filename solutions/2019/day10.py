@@ -31,6 +31,14 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 
+TESTS_PART_ONE = [
+    (aoc.DATA_DIR / '2019.10_example1.txt', 33),
+    (aoc.DATA_DIR / '2019.10_example2.txt', 35),
+    (aoc.DATA_DIR / '2019.10_example3.txt', 41),
+    (aoc.DATA_DIR / '2019.10_example4.txt', 210),
+]
+TESTS_PART_TWO = [(aoc.DATA_DIR / '2019.10_example4.txt', 802)]
+
 type NodeDict = dict[tuple[int, int], Node]
 type NodeGraph = dict[Node, list[Node]]
 
@@ -108,20 +116,58 @@ def create_graph(node_dict: NodeDict) -> NodeGraph:
         
     return graph
 
+def get_slope(node1: Node, node2: Node) -> float:
+    x1, y1, _ = node1
+    x2, y2, _ = node2
+    rise = y2 - y1
+    run = x2 - x1
+    try:
+        return rise / run
+    except ZeroDivisionError:
+        return float('nan')
+
+def get_atan2(node1: Node, node2: Node) -> float:
+    x1, y1, _ = node1
+    x2, y2, _ = node2
+    rise = y2 - y1
+    run = x2 - x1
+    return math.atan2(rise, run)
+
+def test_slope_and_atan2(asteroids: list[Node]):
+    test = asteroids[5]
+    print(test)
+    for a in asteroids:
+        if a == test:
+            continue
+        print(f"Asteroid {a.x},{a.y}: {get_atan2(test, a)} {get_slope(test, a)}")
+
 def part_one(data: str):
     node_dict = create_node_dict(data)
-    asteroids = [n for n in node_dict.values() if n.node_type == NodeType.ASTEROID]
+    a_list = [n for n in node_dict.values() if n.node_type == NodeType.ASTEROID]
+
+    a_dict = {a1: len({get_atan2(a1, a2) for a2 in a_list if a1 != a2}) for a1 in a_list}
+    return max(a_dict.values())
 
 def part_two(data: str):
     ...
 
+def run_tests(tests: list[tuple[Path, int]], fn: Callable):
+    for i, example in enumerate(tests, start=1):
+        filepath, answer = example
+        with open(filepath, 'r') as f:
+            data = f.read()
+        test_answer = fn(data)
+        print(f"Test #{i}: {test_answer == answer}",
+              f"({test_answer})")
+
 def main():
     print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
-    # print(f"Part Two (example):  {part_two(EXAMPLE)}")
+    run_tests(TESTS_PART_ONE, part_one)
+    print(f"Part One (input):  {part_one(INPUT)}")
+    run_tests(TESTS_PART_TWO, part_two)
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
-    # random_tests()
+    random_tests()
 
 def random_tests():
     ...
