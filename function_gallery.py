@@ -38,11 +38,19 @@ DIRECTION_DELTAS = {
     Direction.LEFT: (0, -1),
 }
 
-# X, Y
+# X, Y (starting at upper-right and going down)
 DIRECTION_DELTAS = {      
     Direction.UP: (0, -1),
     Direction.RIGHT: (1, 0),
     Direction.DOWN: (0, 1),
+    Direction.LEFT: (-1, 0),
+}
+
+# X, Y (normal Cartesian plane)
+DIRECTION_DELTAS = {      
+    Direction.UP: (0, 1),
+    Direction.RIGHT: (1, 0),
+    Direction.DOWN: (0, -1),
     Direction.LEFT: (-1, 0),
 }
 
@@ -82,7 +90,7 @@ DIRECTION_DELTAS = {
     Direction.NORTHWEST: (-1, -1)
 }
 
-# X, Y
+# X, Y (starting at upper-right and going down)
 DIRECTION_DELTAS = {
     Direction.NORTH: (0, -1),
     Direction.NORTHEAST: (1, -1),
@@ -90,6 +98,18 @@ DIRECTION_DELTAS = {
     Direction.SOUTHEAST: (1, 1),
     Direction.SOUTH: (0, 1),
     Direction.SOUTHWEST: (-1, 1),
+    Direction.WEST: (-1, 0),
+    Direction.NORTHWEST: (-1, -1)
+}
+
+# X, Y (normal Cartesian plane)
+DIRECTION_DELTAS = {
+    Direction.NORTH: (0, 1),
+    Direction.NORTHEAST: (1, 1),
+    Direction.EAST: (1, 0),
+    Direction.SOUTHEAST: (1, -1),
+    Direction.SOUTH: (0, -1),
+    Direction.SOUTHWEST: (-1, -1),
     Direction.WEST: (-1, 0),
     Direction.NORTHWEST: (-1, 1)
 }
