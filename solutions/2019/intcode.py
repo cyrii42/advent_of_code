@@ -1,3 +1,4 @@
+import inspect
 from dataclasses import dataclass, field
 from collections import deque, defaultdict
 from enum import Enum
@@ -15,6 +16,15 @@ class IntCodeReturn(NamedTuple):
     type: IntCodeReturnType
     value: int
 
+class ParameterMode(Enum):
+    POSITION = 0
+    IMMEDIATE = 1
+    RELATIVE = 2
+
+class Parameter(NamedTuple):
+    num: int
+    mode: int
+                
 def parse_intcode_program(data: str) -> defaultdict[int, int]:
     output_dict = defaultdict(int)
     for i, num_str in enumerate(data.split(',')):
@@ -23,6 +33,9 @@ def parse_intcode_program(data: str) -> defaultdict[int, int]:
         else:
             output_dict[i] = int(num_str)
     return output_dict
+
+def num_parameters(fn: Callable) -> int:
+    return len(inspect.signature(fn).parameters)
 
 @dataclass
 class IntCode:
@@ -74,6 +87,8 @@ class IntCode:
         mode_c, mode_b, mode_a = [int(x) for x in list(instruction_str[0:3])]
         return (fn, mode_a, mode_b, mode_c)    
 
+    # def get_value(self, parameter: Parameter) -> int:
+    #     num, mode = parameter
     def get_value(self, num: int, mode: int) -> int:
         match mode:
             case 0:  # position mode
@@ -89,7 +104,7 @@ class IntCode:
     def execute_program(self) -> IntCodeReturn:
         while True:
             inst = self.program[self.ptr]
-            fn, mode_a, mode_b, mode_c = self.parse_instruction(inst)
+            fn, mode_a, mode_b, mode_c = self.parse_instruction(inst)          
 
             if fn == self.end_program:
                 return IntCodeReturn(IntCodeReturnType.HALT, self.output)
@@ -125,6 +140,25 @@ class IntCode:
                 fn(val_a)
                 self.ptr += 2
                 return IntCodeReturn(IntCodeReturnType.OUTPUT, self.output)
+
+            # if fn == self.end_program:
+            #     return IntCodeReturn(IntCodeReturnType.HALT, self.output)
+            
+            # num_parameters = len(inspect.signature(fn).parameters)
+            # nums = [self.program[self.ptr + x] 
+            #                     for x in range(1, num_parameters+1)]
+            # modes = (mode_a, mode_b, mode_c)
+            # parameters = [Parameter(value, mode) 
+            #               for value, mode
+            #               in zip(nums, modes)]
+            # values = [self.get_value(p) for p in parameters]
+            # fn(*values)
+
+            # if fn not in [self.jump_if_true, self.jump_if_false]:
+            #     self.ptr += num_parameters
+
+            # if fn == self.output_fn:
+            #     return IntCodeReturn(IntCodeReturnType.OUTPUT, self.output)
 
     def add(self, a: int, b: int, c: int) -> None:
         ''' Adds together numbers read from two positions and stores
