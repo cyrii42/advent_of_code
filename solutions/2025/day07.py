@@ -31,19 +31,27 @@ DAY = int(CURRENT_FILE.stem.removeprefix('day')[0:2])
 EXAMPLE = aoc.get_example(YEAR, DAY)
 INPUT = aoc.get_input(YEAR, DAY)
 
-### FOUR DIRECTIONS
+### EIGHT DIRECTIONS
 class Direction(IntEnum):
-    UP = 0
-    RIGHT = 1
-    DOWN = 2
-    LEFT = 3
+    NORTH = 0
+    NORTHEAST = 1
+    EAST = 2
+    SOUTHEAST = 3
+    SOUTH = 4
+    SOUTHWEST = 5
+    WEST = 6
+    NORTHWEST = 7
 
 # ROW, COL
 DIRECTION_DELTAS = {
-    Direction.UP: (-1, 0),
-    Direction.RIGHT: (0, 1),
-    Direction.DOWN: (1, 0),
-    Direction.LEFT: (0, -1),
+    Direction.NORTH: (-1, 0),
+    Direction.NORTHEAST: (-1, 1),
+    Direction.EAST: (0, 1),
+    Direction.SOUTHEAST: (1, 1),
+    Direction.SOUTH: (1, 0),
+    Direction.SOUTHWEST: (1, -1),
+    Direction.WEST: (0, -1),
+    Direction.NORTHWEST: (-1, -1)
 }
 
 class NodeType(Enum):
@@ -98,7 +106,6 @@ def sort_nodes(node_list: list[Node]) -> list[Node]:
 @dataclass
 class Manifold:
     node_dict: dict[Point, Node]
-    graph: NodeGraph
     max_row: int = field(init=False)
 
     def __post_init__(self):
@@ -141,10 +148,10 @@ class Manifold:
 
         return num_splits
 
-    @property
-    def part_two_answer(self) -> int:
-        num_beams = len([n for n in self.node_dict.values() if n.node_type == NodeType.BEAM])
-        return num_beams // 2
+    def print(self) -> None:
+        for row in range(max(p.row for p in self.node_dict.keys())+1):
+            row_nodes = [n for n in self.node_dict.values() if n.row == row]
+            print(row, ''.join(n.node_type.value for n in row_nodes))
 
 def parse_data(data: str) -> dict[Point, Node]:
     line_list = data.splitlines()
@@ -158,8 +165,7 @@ def parse_data(data: str) -> dict[Point, Node]:
     
 def part_one(data: str):
     node_dict = parse_data(data)
-    graph = create_graph(node_dict)
-    manifold = Manifold(node_dict, graph)
+    manifold = Manifold(node_dict)
     num_splits = manifold.run_simulation()
     # print(manifold.node_dict)
     # print(len([n for n in manifold.node_dict.values() if n.node_type == NodeType.BEAM]))
@@ -167,10 +173,38 @@ def part_one(data: str):
 
 def part_two(data: str):
     ''' find the set of unique paths to any node in the bottom row '''
+    node_dict = parse_data(data)
+    manifold = Manifold(node_dict)
+    manifold.run_simulation()
+    manifold.print()
+    new_node_dict = manifold.node_dict
+    adjacency_list = create_graph(new_node_dict)
+    # print(adjacency_list)
+    graph = nx.DiGraph()
+
+    for parent, children in adjacency_list.items():
+        if parent.node_type in [NodeType.START, NodeType.BEAM]:
+            for child in children:
+                if (child.node_type == NodeType.BEAM and child.row > parent.row
+                    and (child.col in [parent.col-1, parent.col, parent.col+1])):
+                    graph.add_edge(parent, child)
+
+    print(graph)
+    
+    start = [n for n in graph.nodes if n.node_type == NodeType.START][0]
+    bottom_row = [n for n in graph.nodes if n.row == 15]
+
+    total_timelines = 0
+    all_timelines = set()
+    for end_point in bottom_row:
+        for path in nx.all_simple_paths(graph, start, end_point):
+            all_timelines.add(tuple(path))
+    print(list(all_timelines)[500])
+    return len(all_timelines)
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
-    print(f"Part One (input):  {part_one(INPUT)}")
+    # print(f"Part One (example):  {part_one(EXAMPLE)}")
+    # print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
     # print(f"Part Two (input):  {part_two(INPUT)}")
 
