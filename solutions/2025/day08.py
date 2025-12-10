@@ -36,10 +36,6 @@ class Point(NamedTuple):
     y: int
     z: int
 
-@dataclass
-class Circuit:
-    boxes: list[Point] = field(default_factory=list)
-
 def get_distance(n1: Point, n2: Point) -> float:
     ''' https://en.wikipedia.org/wiki/Euclidean_distance#Higher_dimensions '''
     return math.sqrt((n1.x - n2.x)**2 + (n1.y - n2.y)**2 + (n1.z - n2.z)**2)
@@ -52,8 +48,15 @@ def find_two_closest_points(point_list: list[Point]) -> tuple[Point, Point]:
     distance_dict = {get_distance(p1, p2): (p1, p2) for p1, p2 
                      in itertools.permutations(point_list, 2)}
     return distance_dict[min(distance_dict.keys())]
+
+'''
+- take closest pair of boxes
+- 
+
+'''
+
    
-def part_one(data: str):
+def part_one(data: str, stop: int = 1000):
     point_list = [Point(*[int(x) for x in line.split(',')]) 
                   for line in data.splitlines()]
 
@@ -61,39 +64,60 @@ def part_one(data: str):
                      in itertools.permutations(point_list, 2)}
     distances = sorted(distance_dict.keys())
 
-    circuit_list: list[Circuit] = []
+    circuit_list: list[list[Point]] = []
+
+    i = 0
+    connections_made = 0
     for distance in distances:
+        if connections_made == stop:
+            print(circuit_list)
+            return len(circuit_list[0]) * len(circuit_list[1]) * len(circuit_list[2]) 
         p1, p2 = distance_dict[distance]
+        # print(p1, p2)
+        # print()
 
-        if any(c for c in circuit_list if p1 in c.boxes and p2 in c.boxes):
-            continue
+        # Check whether p1 and p2 are already linked in a circuit; if so, do nothing
+        if any(c for c in circuit_list if p1 in c and p2 in c):
+            print(f"ALREADY LINKED TOGETHER:  {p1} and {p2}")
 
-        if any(c for c in circuit_list if p1 in c.boxes or p2 in c.boxes):
-            for circuit in circuit_list:
-                if p1 in circuit.boxes and p2 not in circuit.boxes:
-                    circuit.boxes.append(p2)
-                    break
-                elif p2 in circuit.boxes and p1 not in circuit.boxes:
-                    circuit.boxes.append(p1)
-                    break
+        elif any(c for c in circuit_list if p1 in c) and any(c for c in circuit_list if p2 in c):
+            ...
+            print(f"ALREADY IN SEPARATE CIRCUITS: {p1} and {p2}")
+            c1 = next(c for c in circuit_list if p1 in c)
+            c2 = next(c for c in circuit_list if p2 in c)
+            c_new = list(set(c1 + c2))
+            circuit_list.append(c_new)
+            circuit_list.remove(c1)
+            circuit_list.remove(c2)
+            connections_made += 1
 
+        # Check whether neither p1 nor p2 is already in a circuit; if so, make a new circuit for them
+        elif not any(c for c in circuit_list if p1 in c) and not any(c for c in circuit_list if p2 in c):
+            print(f"Adding new circuit: {p1}, {p2}")
+            circuit_list.append([p1, p2])
+            connections_made += 1
+
+
+
+        # Otherwise, 
         else:
-            circuit_list.append(Circuit(boxes=[p1, p2]))
+            for circuit in circuit_list:
+                if p1 in circuit and p2 not in circuit:
+                    print(f"Adding {p2} to {circuit}")
+                    circuit.append(p2)
+                    connections_made += 1
+                    break
+                if p2 in circuit and p1 not in circuit:
+                    print(f"Adding {p1} to {circuit}")
+                    circuit.append(p1)
+                    connections_made += 1
+                    break
+        
 
-    circuit_list = sorted(circuit_list, key=lambda c: len(c.boxes), reverse=True)
+    circuit_list = sorted(circuit_list, key=lambda c: len(c), reverse=True)
     print(circuit_list)
-    return len(circuit_list[0].boxes) * len(circuit_list[1].boxes)
+    return len(circuit_list[0]) * len(circuit_list[1]) * len(circuit_list[2])
 
-            
-    
-
-    # while True:
-    #     p1, p2 = find_two_closest_points(point_list)
-    
-    
-    # p1, p2 = find_two_closest_points(point_list)
-    # print(p1, p2)
-    
     
 def part_two(data: str):
     ...
@@ -101,7 +125,7 @@ def part_two(data: str):
 
 
 def main():
-    print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (example):  {part_one(EXAMPLE, stop = 10)}")
     # print(f"Part One (input):  {part_one(INPUT)}")
     # print(f"Part Two (example):  {part_two(EXAMPLE)}")
     # print(f"Part Two (input):  {part_two(INPUT)}")
