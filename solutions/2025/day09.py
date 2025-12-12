@@ -41,54 +41,9 @@ class RedTile(Point):
 class GreenTile(Point):
     pass
 
-def parse_data(data: str) -> list[RedTile]:
-    line_list = data.splitlines()
-    output_list = []
-    for line in line_list:
-        col, row = [int(x) for x in line.split(',')]
-        output_list.append(RedTile(row, col))
-    return output_list
-    
-def part_one(data: str):
-    red_tile_list = parse_data(data)
-
-    max_area = 0
-    for p1, p2 in itertools.permutations(red_tile_list, 2):
-        width = abs(p1.col - p2.col) + 1
-        height = abs(p1.row - p2.row) + 1
-        area = width * height
-        max_area = max(max_area, area)
-    return max_area
-
-def part_two(data: str):
-    print("creating red tile list")
-    red_tile_list = parse_data(data)
-    # print(red_tile_list)
-    print("creating loop")
-    loop = create_loop(red_tile_list)
-    # print(loop)
-    # print('filling loop')
-    # filled_loop = fill_loop(loop)
-    # print(filled_loop)
-    print('checking boxes')
-    max_area = 0
-    print(len(red_tile_list))
-    for p1, p2 in alive_it(itertools.permutations(red_tile_list, 2)):
-        # box = create_box(p1, p2)
-        # if validate_box(box, loop):
-        if validate_box(p1, p2, loop):
-            # print('valid')
-            width = abs(p1.col - p2.col) + 1
-            height = abs(p1.row - p2.row) + 1
-            area = width * height
-            max_area = max(max_area, area)
-    return max_area
-
-
-
+@dataclass
 class Loop:
-    def __init__(self, tile_set: set[Point]):
-        self.tile_set = tile_set
+    tile_set: set[Point] = field(repr=False)
 
     @functools.cached_property
     def min_row(self) -> int:
@@ -106,28 +61,21 @@ class Loop:
     def max_col(self) -> int:
         return max(tile.col for tile in self.tile_set)
 
-def validate_box(t1: RedTile, t2: RedTile, loop: Loop) -> bool:
-    top_row = max(t1.row, t2.row)
-    bottom_row = min(t1.row, t2.row)
-    left_col = min(t1.col, t2.col)
-    right_col = max(t1.col, t2.col)
-    box_points = [
-        Point(top_row, left_col),
-        Point(top_row, right_col),
-        Point(bottom_row, right_col),
-        Point(bottom_row, left_col)
-    ]
-    return all(validate_point(p, loop) for p in box_points)
+class Rectangle(NamedTuple):
+    upper_left: Point
+    upper_right: Point
+    lower_right: Point
+    lower_left: Point
 
-# def create_box(t1: RedTile, t2: RedTile) -> set[Point]:
-#     min_row, max_row = (min(t1.row, t2.row), max(t1.row, t2.row))
-#     min_col, max_col = (min(t1.col, t2.col), max(t1.col, t2.col))
-    
-#     return {Point(row, col) for row, col 
-#            in itertools.product(range(min_row, max_row+1), range(min_col, max_col+1))}
+    @property
+    def points(self) -> list[Point]:
+        return [self.upper_left, self.upper_right, self.lower_right, self.lower_left]
 
-# def validate_box(box: set[Point], loop: Loop):
-#     return all(validate_point(p, loop) for p in box)
+    @property
+    def area(self) -> int:
+        width = abs(self.upper_left.col - self.lower_right.col) + 1
+        height = abs(self.upper_left.row - self.lower_right.row) + 1
+        return width * height
 
 def create_loop(red_tile_list: list[RedTile]) -> Loop:
     output_set = set()
@@ -151,43 +99,100 @@ def create_loop(red_tile_list: list[RedTile]) -> Loop:
                             for x in [x for x in range(start+1, end)]})
     return Loop(output_set)
 
+def validate_box(t1: RedTile, t2: RedTile, loop: Loop) -> bool:
+    top_row = max(t1.row, t2.row)
+    bottom_row = min(t1.row, t2.row)
+    left_col = min(t1.col, t2.col)
+    right_col = max(t1.col, t2.col)
+    box_points = [
+        Point(top_row, left_col),
+        Point(top_row, right_col),
+        Point(bottom_row, right_col),
+        Point(bottom_row, left_col)
+    ]
+    return all(validate_point(p, loop) for p in box_points)
+    # return all(p in loop.tile_set for p in box_points)
+    # return len([p for p in box_points if p in loop.tile_set]) >= 4
+
+
 def validate_point(p: Point, loop: Loop) -> bool:
     if p in loop.tile_set:
         return True
 
-    row_tiles = [t for t in loop.tile_set if t.row == p.row]
-    if not row_tiles:
-        return False
-    return (p.col >= min(t.col for t in row_tiles)
-            and p.col <= max(t.col for t in row_tiles))
-        
-    return ((loop.min_row <= p.row <= loop.max_row)
-            and (loop.min_col <= p.col <= loop.max_col))
+    num_intersections = len([x for x in range(loop.max_col+1)
+                             if Point(p.row, x) in loop.tile_set])
+    # print(num_intersections)
+    return num_intersections % 2 != 0
 
-# def fill_loop(loop: set[Point]) -> set[Point]:
-#     rows = {tile.row for tile in loop}
-#     print(len(rows))
-#     for row in alive_it(rows):
-#         row_cols = [tile.col for tile in loop if tile.row == row]
-#         start, end = min(row_cols), max(row_cols)
-#         # start = min(tile.col for tile in row_tiles)
-#         # end = max(tile.col for tile in row_tiles)
-#         loop.update({GreenTile(row, x) 
-#                             for x in [x for x in range(start+1, end)]})
-#     return loop
-            
+    # row_tiles = [t for t in loop.tile_set if t.row == p.row]
+    # if not row_tiles:
+    #     return False
+    # return (p.col >= min(t.col for t in row_tiles)
+    #         and p.col <= max(t.col for t in row_tiles))
+    
+
+def parse_data(data: str) -> list[RedTile]:
+    line_list = data.splitlines()
+    output_list = []
+    for line in line_list:
+        col, row = [int(x) for x in line.split(',')]
+        output_list.append(RedTile(row, col))
+    return output_list
+
+def generate_rectangles(red_tile_list: list[RedTile]) -> list[Rectangle]:
+    ''' Returns a list of rectangles sorted by area in descending order '''
+    output_list: list[Rectangle] = []
+    for p1, p2 in itertools.permutations(red_tile_list, 2):
+        top_row = max(p1.row, p2.row)
+        bottom_row = min(p1.row, p2.row)
+        left_col = min(p1.col, p2.col)
+        right_col = max(p1.col, p2.col)
+        box_points = [
+            Point(top_row, left_col),       # upper left
+            Point(top_row, right_col),      # upper right
+            Point(bottom_row, right_col),   # lower right
+            Point(bottom_row, left_col)     # lower left
+        ]
+        output_list.append(Rectangle(*box_points))
+    return sorted(output_list, key=lambda r: r.area, reverse=True)
         
-        # assert t1.row in t2 or t2.col in t2
-        # overlap = t1.row if t1 in t2 else t1.col
-        
-        
+def part_one(data: str):
+    red_tile_list = parse_data(data)
+    rectangles = generate_rectangles(red_tile_list)
+    return rectangles[0].area
+
+    max_area = 0
+    for rectangle in rectangles:
+        width = abs(p1.col - p2.col) + 1
+        height = abs(p1.row - p2.row) + 1
+        area = width * height
+        max_area = max(max_area, area)
+    return max_area
+
+def part_two(data: str):
+    red_tile_list = parse_data(data)
+    rectangles = generate_rectangles(red_tile_list)
+    loop = create_loop(red_tile_list)
+
+    for rectangle in alive_it(rectangles):
+        if all(validate_point(p, loop) for p in rectangle.points):
+            print(rectangle.area)
+            # return rectangle.area
+
+    # max_area = 0
+    # for rectangle in rectangles:
+    #     width = abs(p1.col - p2.col) + 1
+    #     height = abs(p1.row - p2.row) + 1
+    #     area = width * height
+    #     max_area = max(max_area, area)
+    # return max_area
 
 
 def main():
-    # print(f"Part One (example):  {part_one(EXAMPLE)}")
-    # print(f"Part One (input):  {part_one(INPUT)}")
+    print(f"Part One (example):  {part_one(EXAMPLE)}")
+    print(f"Part One (input):  {part_one(INPUT)}")
     print(f"Part Two (example):  {part_two(EXAMPLE)}")
-    print(f"Part Two (input):  {part_two(INPUT)}")
+    # print(f"Part Two (input):  {part_two(INPUT)}")
 
     random_tests()
 
