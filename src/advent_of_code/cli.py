@@ -10,9 +10,7 @@ from advent_of_code.local import write_code_template
 from advent_of_code.models import Puzzle
 from advent_of_code.exceptions import (PuzzleNotFound, PuzzleAnswerAlreadySubmitted, 
                                        PuzzleLevelAlreadySolved, AOCLoginException, ElementNotFound)
-from advent_of_code.logging_config import setup_logging
 
-setup_logging()
 app = typer.Typer()
 
 def get_puzzle(year: int, day: int) -> Puzzle:

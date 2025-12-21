@@ -3,14 +3,11 @@ from sqlalchemy.orm import Session
 from loguru import logger
 
 from advent_of_code.constants import SQLITE_URL
-from advent_of_code.logging_config import setup_logging
 from advent_of_code.models import Puzzle, PuzzleAnswer
 from advent_of_code.sql_schema import answers_table, metadata_obj, puzzles_table
 from advent_of_code.helpers import validate_year_and_day
 from advent_of_code.local import get_puzzle_from_local, get_all_puzzles_from_local
 from advent_of_code.exceptions import PuzzleNotFound, PuzzleAnswerNotFound
-
-setup_logging()
 
 SQL_ENGINE = db.create_engine(SQLITE_URL)
 
